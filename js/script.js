@@ -214,7 +214,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const getResponse = await fetch(apiUrl, {
                 headers: {
-                    'Authorization': `token ${GITHUB_CONFIG.token}`,
+                    'Authorization': `Bearer ${GITHUB_CONFIG.token}`,
                     'Accept': 'application/vnd.github.v3+json'
                 }
             });
@@ -233,17 +233,26 @@ document.addEventListener('DOMContentLoaded', function() {
                 version: '1.0'
             };
             
+            // Convert data to base64 properly
+            const contentString = JSON.stringify(githubData, null, 2);
+            const contentBytes = new TextEncoder().encode(contentString);
+            let contentBase64 = '';
+            for (let i = 0; i < contentBytes.length; i++) {
+                contentBase64 += String.fromCharCode(contentBytes[i]);
+            }
+            contentBase64 = btoa(contentBase64);
+            
             // Update file on GitHub
             const updateResponse = await fetch(apiUrl, {
                 method: 'PUT',
                 headers: {
-                    'Authorization': `token ${GITHUB_CONFIG.token}`,
+                    'Authorization': `Bearer ${GITHUB_CONFIG.token}`,
                     'Content-Type': 'application/json',
                     'Accept': 'application/vnd.github.v3+json'
                 },
                 body: JSON.stringify({
                     message: `HisaabKitaab update: ${new Date().toLocaleString()}`,
-                    content: btoa(unescape(encodeURIComponent(JSON.stringify(githubData, null, 2)))),
+                    content: contentBase64,
                     sha: sha,
                     branch: GITHUB_CONFIG.branch
                 })
@@ -255,6 +264,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 localStorage.setItem('hisaabKitaabSheets', JSON.stringify(data));
                 return true;
             } else {
+                const errorText = await updateResponse.text();
+                console.error('GitHub API error:', errorText);
                 setSyncStatus('error', 'Cloud save failed');
                 // Fallback to local storage
                 localStorage.setItem('hisaabKitaabSheets', JSON.stringify(data));
@@ -907,21 +918,95 @@ document.addEventListener('DOMContentLoaded', function() {
         selectedParticipants = currentSheetData.participants;
         sheetName.textContent = currentSheetData.name;
         
-        renderExpenseTable();
+        renderExpenseTableWithSavedData(); // FIXED: Use the corrected function
         
-        // Auto-calculate and display shares when opening sheet
+        sheetSection.style.display = 'block';
+        participantsSection.style.display = 'none';
+        editParticipantsSection.style.display = 'none';
+        sheetSection.scrollIntoView({ behavior: 'smooth' });
+    }
+    
+    // FIXED: New function to properly render saved data
+    function renderExpenseTableWithSavedData() {
+        tableBody.innerHTML = '';
+        
+        selectedParticipants.forEach(participant => {
+            const row = document.createElement('tr');
+            
+            // Participant Name
+            const nameCell = document.createElement('td');
+            nameCell.textContent = participant;
+            
+            // Spent Amount
+            const spentCell = document.createElement('td');
+            spentCell.className = 'amount-cell';
+            
+            if (isAdmin) {
+                const spentInput = document.createElement('input');
+                spentInput.type = 'number';
+                spentInput.min = '0';
+                spentInput.step = '0.01';
+                spentInput.value = currentSheetData.expenses[participant].spent || 0;
+                spentInput.dataset.participant = participant;
+                spentInput.addEventListener('input', function() {
+                    currentSheetData.expenses[participant].spent = parseFloat(this.value) || 0;
+                });
+                spentCell.appendChild(spentInput);
+            } else {
+                spentCell.textContent = (currentSheetData.expenses[participant].spent || 0).toFixed(2) + ' SAR';
+            }
+            
+            // Meals
+            const mealsCell = document.createElement('td');
+            mealsCell.className = 'meals-cell';
+            
+            if (isAdmin) {
+                const mealsSelect = document.createElement('select');
+                mealsSelect.dataset.participant = participant;
+                
+                [1, 2, 3].forEach(mealCount => {
+                    const option = document.createElement('option');
+                    option.value = mealCount.toString();
+                    option.textContent = `${mealCount} Meal${mealCount > 1 ? 's' : ''}`;
+                    mealsSelect.appendChild(option);
+                });
+                
+                mealsSelect.value = (currentSheetData.expenses[participant].meals || 3).toString();
+                mealsSelect.addEventListener('change', function() {
+                    currentSheetData.expenses[participant].meals = parseInt(this.value);
+                });
+                mealsCell.appendChild(mealsSelect);
+            } else {
+                mealsCell.textContent = currentSheetData.expenses[participant].meals || 3;
+            }
+            
+            // To Be Paid
+            const toBePaidCell = document.createElement('td');
+            toBePaidCell.className = 'amount-cell';
+            toBePaidCell.textContent = (currentSheetData.expenses[participant].toBePaid || 0).toFixed(2) + ' SAR';
+            toBePaidCell.dataset.participant = participant;
+            
+            row.appendChild(nameCell);
+            row.appendChild(spentCell);
+            row.appendChild(mealsCell);
+            row.appendChild(toBePaidCell);
+            tableBody.appendChild(row);
+        });
+        
+        // Calculate and display totals
         let totalSpent = 0;
         let totalMeals = 0;
         let oneMealCount = 0, twoMealsCount = 0, threeMealsCount = 0;
         
         selectedParticipants.forEach(participant => {
-            totalSpent += currentSheetData.expenses[participant].spent;
-            totalMeals += currentSheetData.expenses[participant].meals;
+            totalSpent += currentSheetData.expenses[participant].spent || 0;
+            totalMeals += currentSheetData.expenses[participant].meals || 3;
             
             switch(currentSheetData.expenses[participant].meals) {
                 case 1: oneMealCount++; break;
                 case 2: twoMealsCount++; break;
                 case 3: threeMealsCount++; break;
+                default: threeMealsCount++; break;
             }
         });
         
@@ -929,7 +1014,6 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Update Summary Display
         totalParticipantsElement.textContent = selectedParticipants.length;
-        document.getElementById('totalSpentCell').textContent = totalSpent.toFixed(2) + ' SAR';
         totalSpentElement.textContent = totalSpent.toFixed(2) + ' SAR';
         totalMealsElement.textContent = totalMeals;
         costPerMealElement.textContent = costPerMeal.toFixed(2) + ' SAR';
@@ -939,8 +1023,8 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Calculate and display To Be Paid amounts
         selectedParticipants.forEach(participant => {
-            const spentAmount = currentSheetData.expenses[participant].spent;
-            const mealsAttended = currentSheetData.expenses[participant].meals;
+            const spentAmount = currentSheetData.expenses[participant].spent || 0;
+            const mealsAttended = currentSheetData.expenses[participant].meals || 3;
             const shareAmount = costPerMeal * mealsAttended;
             const toBePaid = shareAmount - spentAmount;
             currentSheetData.expenses[participant].toBePaid = toBePaid;
@@ -952,11 +1036,17 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
         
-        generateSettlementSuggestions();
+        // Add Total Row
+        const totalRow = document.createElement('tr');
+        totalRow.className = 'total-row';
+        totalRow.innerHTML = `
+            <td>Total</td>
+            <td class="amount-cell">${totalSpent.toFixed(2)} SAR</td>
+            <td>${totalMeals}</td>
+            <td></td>
+        `;
+        tableBody.appendChild(totalRow);
         
-        sheetSection.style.display = 'block';
-        participantsSection.style.display = 'none';
-        editParticipantsSection.style.display = 'none';
-        sheetSection.scrollIntoView({ behavior: 'smooth' });
+        generateSettlementSuggestions();
     }
 });
