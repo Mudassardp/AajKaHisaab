@@ -63,7 +63,7 @@ document.addEventListener('DOMContentLoaded', function() {
         repository: 'hisaabkitaab-data',           // Repository name
         branch: 'main',                            // Branch name
         filePath: 'data/sheets.json',              // File path in repository
-        token: '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'  // ← SET THIS TO YOUR TOKEN OR NULL TO TEST LOCALLY
+        token: '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'  // ← SET THIS TO YOUR TOKEN OR NULL TO TEST LOCALLY
         // token: 'ghp_your_actual_token_here'    // Uncomment and add your real token
     };
     
