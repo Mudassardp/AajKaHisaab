@@ -57,14 +57,13 @@ document.addEventListener('DOMContentLoaded', function() {
     let savedSheets = [];
     let isAdmin = false;
     
-    // ⚠️ GITHUB CONFIGURATION - READ THIS CAREFULLY ⚠️
+    // GitHub Configuration with your credentials
     const GITHUB_CONFIG = {
-        username: 'mudassardp',                    // Your GitHub username
-        repository: 'hisaabkitaab-data',           // Repository name
-        branch: 'main',                            // Branch name
-        filePath: 'data/sheets.json',              // File path in repository
-        token: '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'  // ← SET THIS TO YOUR TOKEN OR NULL TO TEST LOCALLY
-        // token: 'ghp_your_actual_token_here'    // Uncomment and add your real token
+        username: 'mudassardp',
+        repository: 'hisaabkitaab-data',
+        branch: 'main',
+        filePath: 'data/sheets.json',
+        token: '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'
     };
     
     const ADMIN_PASSWORD = "226622";
@@ -120,7 +119,7 @@ document.addEventListener('DOMContentLoaded', function() {
         cancelEditBtn.addEventListener('click', cancelEditParticipants);
     }
     
-    // GitHub Cloud Storage Functions - FIXED VERSION
+    // GitHub Cloud Storage Functions
     function hideGithubConfigModal() {
         if (githubConfigModal) {
             githubConfigModal.style.display = 'none';
@@ -131,16 +130,6 @@ document.addEventListener('DOMContentLoaded', function() {
         setSyncStatus('syncing', 'Loading...');
         
         try {
-            // If no GitHub token, use local storage only
-            if (!GITHUB_CONFIG.token) {
-                console.log('No GitHub token configured, using local storage only');
-                loadFromLocalStorage();
-                setSyncStatus('success', 'Local storage only');
-                updateStorageUI('Local Storage');
-                loadSavedSheets();
-                return;
-            }
-            
             const data = await loadDataFromGitHub();
             if (data && data.sheets) {
                 savedSheets = data.sheets;
@@ -163,44 +152,29 @@ document.addEventListener('DOMContentLoaded', function() {
     
     async function loadDataFromGitHub() {
         try {
-            // Validate GitHub configuration
-            if (!GITHUB_CONFIG.username || !GITHUB_CONFIG.repository) {
-                throw new Error('GitHub configuration is incomplete');
-            }
-
             const rawUrl = `https://raw.githubusercontent.com/${GITHUB_CONFIG.username}/${GITHUB_CONFIG.repository}/${GITHUB_CONFIG.branch}/${GITHUB_CONFIG.filePath}?t=${Date.now()}`;
-            console.log('Loading from GitHub URL:', rawUrl);
             
             const response = await fetch(rawUrl);
-            console.log('GitHub raw response status:', response.status);
-
+            
             if (response.ok) {
                 const text = await response.text();
-                console.log('GitHub raw response text length:', text.length);
-
+                
                 let data;
                 try {
                     data = JSON.parse(text);
-                    console.log('Successfully parsed GitHub data');
                 } catch (parseError) {
                     console.error('JSON parse error:', parseError);
                     return null;
                 }
 
-                // Check if GitHub has data or is empty
                 const hasSheets = data.sheets && data.sheets.length > 0;
-                console.log('GitHub has sheets:', hasSheets);
 
                 if (hasSheets) {
-                    // GitHub has data - use it
                     return data;
                 } else {
-                    // GitHub is empty - check local storage
                     loadFromLocalStorage();
                     
                     if (savedSheets.length > 0 && isAdmin) {
-                        // Upload local data to GitHub (admin only)
-                        console.log('Uploading local data to GitHub...');
                         await saveDataToGitHub(savedSheets);
                         return { sheets: savedSheets };
                     } else {
@@ -209,8 +183,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 
             } else if (response.status === 404) {
-                // File doesn't exist yet
-                console.log('GitHub file not found (404)');
                 loadFromLocalStorage();
                 return { sheets: savedSheets };
             } else {
@@ -224,41 +196,20 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     async function saveDataToGitHub(data) {
-        // STEP 1: If no GitHub token, save to local storage only
-        if (!GITHUB_CONFIG.token) {
-            console.log('No GitHub token, saving to local storage only');
-            localStorage.setItem('hisaabKitaabSheets', JSON.stringify(data));
-            setSyncStatus('success', 'Saved locally (no cloud config)');
-            return true;
-        }
-        
         if (!isAdmin) {
-            console.log('Not admin, skipping GitHub save');
             return false;
         }
         
         setSyncStatus('syncing', 'Saving to cloud...');
         
         try {
-            // STEP 2: Validate GitHub configuration
-            if (!GITHUB_CONFIG.username || !GITHUB_CONFIG.repository || !GITHUB_CONFIG.token) {
-                throw new Error('GitHub configuration is incomplete');
-            }
-
-            // STEP 3: Check token format
-            if (!GITHUB_CONFIG.token.startsWith('ghp_') && !GITHUB_CONFIG.token.startsWith('github_pat_')) {
-                throw new Error('Invalid GitHub token format. Token should start with ghp_ or github_pat_');
-            }
-
             const apiUrl = `https://api.github.com/repos/${GITHUB_CONFIG.username}/${GITHUB_CONFIG.repository}/contents/${GITHUB_CONFIG.filePath}`;
-            console.log('GitHub API URL:', apiUrl);
 
-            // STEP 4: Get current file SHA (needed for update)
             let sha = null;
             try {
                 const getResponse = await fetch(apiUrl, {
                     headers: {
-                        'Authorization': `Bearer ${GITHUB_CONFIG.token}`,
+                        'Authorization': `token ${GITHUB_CONFIG.token}`,
                         'Accept': 'application/vnd.github.v3+json',
                         'User-Agent': 'HisaabKitaab-App'
                     }
@@ -267,19 +218,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (getResponse.ok) {
                     const fileInfo = await getResponse.json();
                     sha = fileInfo.sha;
-                    console.log('Found existing file, SHA:', sha);
                 } else if (getResponse.status !== 404) {
                     const errorText = await getResponse.text();
-                    throw new Error(`GitHub API error (GET): ${getResponse.status} - ${errorText}`);
-                } else {
-                    console.log('File does not exist yet, will create new file');
+                    throw new Error(`GitHub API error (GET): ${getResponse.status}`);
                 }
             } catch (getError) {
                 console.error('Error getting file info:', getError);
                 throw getError;
             }
 
-            // STEP 5: Prepare data for GitHub
             const githubData = {
                 sheets: data,
                 lastUpdated: new Date().toISOString(),
@@ -287,31 +234,23 @@ document.addEventListener('DOMContentLoaded', function() {
                 version: '1.0'
             };
 
-            // STEP 6: Convert data to base64 properly
             const contentString = JSON.stringify(githubData, null, 2);
             const contentBase64 = btoa(unescape(encodeURIComponent(contentString)));
             
-            console.log('Data prepared for GitHub, content length:', contentString.length);
-
-            // STEP 7: Prepare the request body
             const requestBody = {
                 message: `HisaabKitaab update: ${new Date().toLocaleString()}`,
                 content: contentBase64,
                 branch: GITHUB_CONFIG.branch
             };
 
-            // Add SHA if we're updating an existing file
             if (sha) {
                 requestBody.sha = sha;
             }
 
-            console.log('Sending request to GitHub...');
-
-            // STEP 8: Update file on GitHub
             const updateResponse = await fetch(apiUrl, {
                 method: 'PUT',
                 headers: {
-                    'Authorization': `Bearer ${GITHUB_CONFIG.token}`,
+                    'Authorization': `token ${GITHUB_CONFIG.token}`,
                     'Content-Type': 'application/json',
                     'Accept': 'application/vnd.github.v3+json',
                     'User-Agent': 'HisaabKitaab-App'
@@ -319,40 +258,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 body: JSON.stringify(requestBody)
             });
 
-            console.log('GitHub response status:', updateResponse.status);
-
             if (updateResponse.ok) {
-                const result = await updateResponse.json();
-                console.log('GitHub save successful:', result);
                 setSyncStatus('success', 'Saved to cloud');
-                
-                // Also update local storage as backup
                 localStorage.setItem('hisaabKitaabSheets', JSON.stringify(data));
                 return true;
             } else {
                 const errorText = await updateResponse.text();
-                console.error('GitHub API error response:', errorText);
-                
-                let errorMessage = `GitHub API error: ${updateResponse.status}`;
-                if (updateResponse.status === 401) {
-                    errorMessage = 'GitHub authentication failed. Please check your token.';
-                } else if (updateResponse.status === 403) {
-                    errorMessage = 'GitHub access forbidden. Please check repository permissions.';
-                } else if (updateResponse.status === 404) {
-                    errorMessage = 'Repository not found. Please check repository name and permissions.';
-                }
-                
-                throw new Error(errorMessage);
+                console.error('GitHub API error:', errorText);
+                setSyncStatus('error', 'Cloud save failed');
+                localStorage.setItem('hisaabKitaabSheets', JSON.stringify(data));
+                return false;
             }
         } catch (error) {
             console.error('GitHub save error:', error);
             setSyncStatus('error', 'Cloud save failed');
-            
-            // Fallback to local storage
             localStorage.setItem('hisaabKitaabSheets', JSON.stringify(data));
-            
-            // Show detailed error message for debugging
-            alert(`Cloud save failed: ${error.message}\n\nData has been saved locally.`);
             return false;
         }
     }
@@ -362,14 +282,12 @@ document.addEventListener('DOMContentLoaded', function() {
         if (localData) {
             try {
                 savedSheets = JSON.parse(localData);
-                console.log('Loaded from local storage, sheets count:', savedSheets.length);
             } catch (e) {
                 console.error('Error parsing local storage data:', e);
                 savedSheets = [];
             }
         } else {
             savedSheets = [];
-            console.log('No local storage data found');
         }
     }
     
@@ -997,7 +915,7 @@ document.addEventListener('DOMContentLoaded', function() {
         selectedParticipants = currentSheetData.participants;
         sheetName.textContent = currentSheetData.name;
         
-        renderExpenseTableWithSavedData(); // FIXED: Use the corrected function
+        renderExpenseTableWithSavedData();
         
         sheetSection.style.display = 'block';
         participantsSection.style.display = 'none';
@@ -1025,7 +943,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 spentInput.type = 'number';
                 spentInput.min = '0';
                 spentInput.step = '0.01';
-                // FIX: Use saved data with proper fallback
                 spentInput.value = currentSheetData.expenses[participant]?.spent || 0;
                 spentInput.dataset.participant = participant;
                 spentInput.addEventListener('input', function() {
@@ -1051,7 +968,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     mealsSelect.appendChild(option);
                 });
                 
-                // FIX: Use saved data with proper fallback
                 mealsSelect.value = (currentSheetData.expenses[participant]?.meals || 3).toString();
                 mealsSelect.addEventListener('change', function() {
                     currentSheetData.expenses[participant].meals = parseInt(this.value);
