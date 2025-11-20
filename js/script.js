@@ -12,11 +12,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const confirmAdminLoginBtn = document.getElementById('confirmAdminLoginBtn');
     const cancelAdminLoginBtn = document.getElementById('cancelAdminLoginBtn');
     const loginAsAdminBtn = document.getElementById('loginAsAdminBtn');
-    const githubUsernameInput = document.getElementById('githubUsernameInput');
-    const githubRepoInput = document.getElementById('githubRepoInput');
-    const githubTokenInput = document.getElementById('githubTokenInput');
-    const saveGithubConfigBtn = document.getElementById('saveGithubConfigBtn');
-    const skipGithubConfigBtn = document.getElementById('skipGithubConfigBtn');
     const refreshDataBtn = document.getElementById('refreshDataBtn');
     const storageTypeElement = document.getElementById('storageType');
     
@@ -61,8 +56,15 @@ document.addEventListener('DOMContentLoaded', function() {
     let currentSheetData = null;
     let savedSheets = [];
     let isAdmin = false;
-    let useGitHub = false;
-    let githubConfig = null;
+    
+    // ⚠️ IMPORTANT: REPLACE THESE WITH YOUR ACTUAL GITHUB CREDENTIALS ⚠️
+    const GITHUB_CONFIG = {
+        username: 'mudassardp',      // Replace with your GitHub username
+        repository: 'hisaabkitaab-data',       // Replace if different
+        branch: 'main',
+        filePath: 'data/sheets.json',
+        token: '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'    // Replace with your token
+    };
     
     const ADMIN_PASSWORD = "226622";
     const DEFAULT_PARTICIPANTS = [
@@ -75,9 +77,7 @@ document.addEventListener('DOMContentLoaded', function() {
     initApp();
     
     function initApp() {
-        console.log('🚀 INIT: Starting app initialization');
         setupEventListeners();
-        loadGithubConfig();
         checkAdminStatus();
         loadData();
     }
@@ -89,12 +89,8 @@ document.addEventListener('DOMContentLoaded', function() {
         cancelAdminLoginBtn.addEventListener('click', hideAdminLoginModal);
         logoutBtn.addEventListener('click', handleLogout);
         
-        // GitHub Configuration
-        saveGithubConfigBtn.addEventListener('click', saveGithubConfig);
-        skipGithubConfigBtn.addEventListener('click', skipGithubConfig);
-        refreshDataBtn.addEventListener('click', loadData);
-        
         // Sheet Management
+        refreshDataBtn.addEventListener('click', loadData);
         createBtn.addEventListener('click', showParticipantsSection);
         createSheetBtn.addEventListener('click', createNewSheet);
         calculateBtn.addEventListener('click', calculateShares);
@@ -121,184 +117,90 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // GitHub Cloud Storage Functions
-    function loadGithubConfig() {
-        console.log('🔧 CONFIG: Loading GitHub configuration');
-        const savedConfig = localStorage.getItem('hisaabKitaabGithubConfig');
-        if (savedConfig) {
-            githubConfig = JSON.parse(savedConfig);
-            useGitHub = true;
-            updateStorageUI('GitHub Cloud');
-            console.log('✅ CONFIG: GitHub configuration loaded');
-        } else {
-            console.log('⚠️ CONFIG: No GitHub config found, showing modal');
-            showGithubConfigModal();
-        }
-    }
-    
-    function showGithubConfigModal() {
-        githubConfigModal.style.display = 'flex';
-    }
-    
-    function hideGithubConfigModal() {
-        githubConfigModal.style.display = 'none';
-    }
-    
-    function saveGithubConfig() {
-        const username = githubUsernameInput.value.trim();
-        const repository = githubRepoInput.value.trim();
-        const token = githubTokenInput.value.trim();
-        
-        if (!username || !repository || !token) {
-            alert('Please fill in all GitHub configuration fields.');
-            return;
-        }
-        
-        githubConfig = {
-            username: username,
-            repository: repository,
-            branch: 'main',
-            filePath: 'data/sheets.json',
-            token: token
-        };
-        
-        localStorage.setItem('hisaabKitaabGithubConfig', JSON.stringify(githubConfig));
-        useGitHub = true;
-        updateStorageUI('GitHub Cloud');
-        hideGithubConfigModal();
-        loadData();
-        alert('GitHub configuration saved successfully!');
-    }
-    
-    function skipGithubConfig() {
-        useGitHub = false;
-        updateStorageUI('Local Storage');
-        hideGithubConfigModal();
-        loadData();
-        alert('Using local storage. You can configure GitHub later from the admin panel.');
-    }
-    
-    function updateStorageUI(type) {
-        storageTypeElement.textContent = type;
-        if (type === 'GitHub Cloud') {
-            storageTypeElement.className = 'cloud-storage-badge';
-        } else {
-            storageTypeElement.className = 'local-storage-badge';
-        }
-    }
-    
-    async function loadData() {
-        console.log('📥 LOAD: Starting data load process');
+    function loadData() {
         setSyncStatus('syncing', 'Loading...');
         
         try {
-            if (useGitHub && githubConfig) {
-                console.log('🌐 LOAD: Attempting to load from GitHub');
-                const data = await loadDataFromGitHub();
-                if (data && data.sheets) {
-                    savedSheets = data.sheets;
-                    console.log('✅ LOAD: Successfully loaded from GitHub:', savedSheets.length, 'sheets');
-                    console.log('📊 LOAD: Sheet IDs:', savedSheets.map(s => s.id));
-                    setSyncStatus('success', 'Synced');
-                } else {
-                    console.log('⚠️ LOAD: No data from GitHub, falling back to local storage');
-                    loadFromLocalStorage();
-                    setSyncStatus('success', 'Local data');
-                }
+            const data = loadDataFromGitHub();
+            if (data && data.sheets) {
+                savedSheets = data.sheets;
+                setSyncStatus('success', 'Synced');
             } else {
-                console.log('💾 LOAD: Using local storage only');
                 loadFromLocalStorage();
-                setSyncStatus('success', 'Local');
+                setSyncStatus('success', 'Local data');
             }
         } catch (error) {
-            console.error('❌ LOAD: Error loading data:', error);
+            console.error('Load data error:', error);
             loadFromLocalStorage();
             setSyncStatus('error', 'Load failed - using local');
         }
         
-        console.log('🎯 LOAD: Final savedSheets count:', savedSheets.length);
         loadSavedSheets();
     }
     
     async function loadDataFromGitHub() {
-    try {
-        const rawUrl = `https://raw.githubusercontent.com/${githubConfig.username}/${githubConfig.repository}/${githubConfig.branch}/${githubConfig.filePath}?t=${Date.now()}`;
-        console.log('🔗 GITHUB: Loading from URL:', rawUrl);
-        
-        const response = await fetch(rawUrl);
-        console.log('📡 GITHUB: Response status:', response.status);
-        
-        if (response.ok) {
-            const text = await response.text();
-            console.log('📄 GITHUB: Raw response text:', text);
+        try {
+            const rawUrl = `https://raw.githubusercontent.com/${GITHUB_CONFIG.username}/${GITHUB_CONFIG.repository}/${GITHUB_CONFIG.branch}/${GITHUB_CONFIG.filePath}?t=${Date.now()}`;
             
-            let data;
-            try {
-                data = JSON.parse(text);
-                console.log('✅ GITHUB: Successfully parsed JSON data');
-            } catch (parseError) {
-                console.error('❌ GITHUB: JSON parse error:', parseError);
-                return null;
-            }
+            const response = await fetch(rawUrl);
             
-            console.log('🔍 GITHUB: Data from GitHub:', data);
-            
-            // Check if GitHub has data or is empty
-            const hasSheets = data.sheets && data.sheets.length > 0;
-            console.log('📊 GITHUB: Has sheets?', hasSheets);
-            
-            if (hasSheets) {
-                // GitHub has data - use it
-                console.log('✅ GITHUB: Using data from GitHub');
-                return data;
-            } else {
-                // GitHub is empty - check local storage
-                console.log('📭 GITHUB: No sheets in GitHub, checking local storage');
-                loadFromLocalStorage();
+            if (response.ok) {
+                const text = await response.text();
                 
-                if (savedSheets.length > 0) {
-                    console.log('💾 GITHUB: Local storage has data, uploading to GitHub');
-                    // Upload local data to GitHub
-                    await saveDataToGitHub(savedSheets);
-                    return { sheets: savedSheets };
-                } else {
-                    console.log('📭 GITHUB: Both GitHub and local storage are empty');
-                    return { sheets: [] };
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch (parseError) {
+                    console.error('JSON parse error:', parseError);
+                    return null;
                 }
+                
+                // Check if GitHub has data or is empty
+                const hasSheets = data.sheets && data.sheets.length > 0;
+                
+                if (hasSheets) {
+                    // GitHub has data - use it
+                    return data;
+                } else {
+                    // GitHub is empty - check local storage
+                    loadFromLocalStorage();
+                    
+                    if (savedSheets.length > 0) {
+                        // Upload local data to GitHub
+                        await saveDataToGitHub(savedSheets);
+                        return { sheets: savedSheets };
+                    } else {
+                        return { sheets: [] };
+                    }
+                }
+                
+            } else if (response.status === 404) {
+                loadFromLocalStorage();
+                return { sheets: savedSheets };
+            } else {
+                throw new Error(`GitHub response: ${response.status}`);
             }
-            
-        } else if (response.status === 404) {
-            console.log('📭 GITHUB: File not found (404)');
+        } catch (error) {
+            console.error('Failed to load from GitHub:', error);
             loadFromLocalStorage();
             return { sheets: savedSheets };
-        } else {
-            console.error('❌ GITHUB: Response not OK:', response.status, response.statusText);
-            throw new Error(`GitHub response: ${response.status} ${response.statusText}`);
         }
-    } catch (error) {
-        console.error('❌ GITHUB: Failed to load from GitHub:', error);
-        console.log('💾 GITHUB: Falling back to local storage');
-        loadFromLocalStorage();
-        return { sheets: savedSheets };
     }
-}
     
     async function saveDataToGitHub(data) {
-        if (!useGitHub || !githubConfig || !isAdmin) {
-            console.log('⏭️ GITHUB: Skipping save - not configured or not admin');
+        if (!isAdmin) {
             return false;
         }
         
-        console.log('💾 GITHUB: Starting save process with', data.length, 'sheets');
         setSyncStatus('syncing', 'Saving...');
         
         try {
             // Get current file SHA (needed for update)
-            const apiUrl = `https://api.github.com/repos/${githubConfig.username}/${githubConfig.repository}/contents/${githubConfig.filePath}`;
-            console.log('🔗 GITHUB: API URL:', apiUrl);
+            const apiUrl = `https://api.github.com/repos/${GITHUB_CONFIG.username}/${GITHUB_CONFIG.repository}/contents/${GITHUB_CONFIG.filePath}`;
             
             const getResponse = await fetch(apiUrl, {
                 headers: {
-                    'Authorization': `token ${githubConfig.token}`,
+                    'Authorization': `token ${GITHUB_CONFIG.token}`,
                     'Accept': 'application/vnd.github.v3+json'
                 }
             });
@@ -307,11 +209,6 @@ document.addEventListener('DOMContentLoaded', function() {
             if (getResponse.ok) {
                 const fileInfo = await getResponse.json();
                 sha = fileInfo.sha;
-                console.log('📝 GITHUB: Got file SHA for update');
-            } else if (getResponse.status === 404) {
-                console.log('📝 GITHUB: File does not exist, will create new');
-            } else {
-                console.error('❌ GITHUB: Failed to get file info:', getResponse.status);
             }
             
             // Prepare data for GitHub
@@ -322,13 +219,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 version: '1.0'
             };
             
-            console.log('📦 GITHUB: Prepared data for upload:', githubData);
-            
             // Update file on GitHub
             const updateResponse = await fetch(apiUrl, {
                 method: 'PUT',
                 headers: {
-                    'Authorization': `token ${githubConfig.token}`,
+                    'Authorization': `token ${GITHUB_CONFIG.token}`,
                     'Content-Type': 'application/json',
                     'Accept': 'application/vnd.github.v3+json'
                 },
@@ -336,52 +231,40 @@ document.addEventListener('DOMContentLoaded', function() {
                     message: `HisaabKitaab update: ${new Date().toLocaleString()}`,
                     content: btoa(unescape(encodeURIComponent(JSON.stringify(githubData, null, 2)))),
                     sha: sha,
-                    branch: githubConfig.branch
+                    branch: GITHUB_CONFIG.branch
                 })
             });
             
-            console.log('📡 GITHUB: Save response status:', updateResponse.status);
-            
             if (updateResponse.ok) {
-                console.log('✅ GITHUB: Successfully saved to GitHub');
                 setSyncStatus('success', 'Saved to cloud');
                 // Also update local storage as backup
                 localStorage.setItem('hisaabKitaabSheets', JSON.stringify(data));
-                console.log('💾 LOCAL: Backup saved to local storage');
                 return true;
             } else {
-                const error = await updateResponse.json();
-                console.error('❌ GITHUB: Save error response:', error);
                 setSyncStatus('error', 'Cloud save failed');
                 // Fallback to local storage
                 localStorage.setItem('hisaabKitaabSheets', JSON.stringify(data));
-                console.log('💾 LOCAL: Fallback to local storage');
                 return false;
             }
         } catch (error) {
-            console.error('❌ GITHUB: Save error:', error);
+            console.error('GitHub save error:', error);
             setSyncStatus('error', 'Cloud save failed');
             // Fallback to local storage
             localStorage.setItem('hisaabKitaabSheets', JSON.stringify(data));
-            console.log('💾 LOCAL: Fallback to local storage due to error');
             return false;
         }
     }
     
     function loadFromLocalStorage() {
         const localData = localStorage.getItem('hisaabKitaabSheets');
-        console.log('💾 LOCAL: Raw local storage data:', localData);
-        
         if (localData) {
             try {
                 savedSheets = JSON.parse(localData);
-                console.log('✅ LOCAL: Successfully loaded from local storage:', savedSheets.length, 'sheets');
             } catch (e) {
-                console.error('❌ LOCAL: Error parsing local storage data:', e);
+                console.error('Error parsing local storage data:', e);
                 savedSheets = [];
             }
         } else {
-            console.log('📭 LOCAL: No data in local storage');
             savedSheets = [];
         }
     }
@@ -445,6 +328,7 @@ document.addEventListener('DOMContentLoaded', function() {
         saveCloseBtn.style.display = 'inline-block';
         adminSheetActions.style.display = 'flex';
         closeSheetBtn.style.display = 'none';
+        updateStorageUI('GitHub Cloud');
         loadSavedSheets();
     }
     
@@ -459,9 +343,31 @@ document.addEventListener('DOMContentLoaded', function() {
         participantsSection.style.display = 'none';
         editParticipantsSection.style.display = 'none';
         closeSheetBtn.style.display = 'inline-block';
+        updateStorageUI('GitHub Cloud');
         loadSavedSheets();
     }
     
+    function updateStorageUI(type) {
+        storageTypeElement.textContent = type;
+        if (type === 'GitHub Cloud') {
+            storageTypeElement.className = 'cloud-storage-badge';
+        } else {
+            storageTypeElement.className = 'local-storage-badge';
+        }
+    }
+
+    // Hide GitHub configuration modal immediately
+    document.addEventListener('DOMContentLoaded', function() {
+        const githubConfigModal = document.getElementById('githubConfigModal');
+        if (githubConfigModal) {
+            githubConfigModal.style.display = 'none';
+        }
+    });
+    
+    // The rest of your functions remain exactly the same...
+    // [Include all the remaining functions from your previous script.js]
+    // Only the GitHub configuration part is changed
+
     // Sheet Management Functions
     function showParticipantsSection() {
         if (!isAdmin) return;
@@ -741,26 +647,16 @@ document.addEventListener('DOMContentLoaded', function() {
     function saveSheet() {
         if (!currentSheetData || !isAdmin) return;
         
-        console.log('💾 SAVE: Starting save process for sheet:', currentSheetData.id);
         calculateShares();
         
         const existingIndex = savedSheets.findIndex(sheet => sheet.id === currentSheetData.id);
         if (existingIndex !== -1) {
             savedSheets[existingIndex] = currentSheetData;
-            console.log('📝 SAVE: Updated existing sheet at index:', existingIndex);
         } else {
             savedSheets.push(currentSheetData);
-            console.log('🆕 SAVE: Added new sheet, total sheets:', savedSheets.length);
         }
         
-        if (useGitHub && githubConfig) {
-            console.log('🌐 SAVE: Saving to GitHub...');
-            saveDataToGitHub(savedSheets);
-        } else {
-            localStorage.setItem('hisaabKitaabSheets', JSON.stringify(savedSheets));
-            console.log('💾 SAVE: Saved to local storage');
-        }
-        
+        saveDataToGitHub(savedSheets);
         loadSavedSheets();
         alert('Sheet saved successfully!');
     }
@@ -785,16 +681,8 @@ document.addEventListener('DOMContentLoaded', function() {
     function deleteCurrentSheet() {
         if (!currentSheetData || !isAdmin) return;
         
-        console.log('🗑️ DELETE: Deleting sheet:', currentSheetData.id);
         savedSheets = savedSheets.filter(sheet => sheet.id !== currentSheetData.id);
-        console.log('🗑️ DELETE: Remaining sheets:', savedSheets.length);
-        
-        if (useGitHub && githubConfig) {
-            saveDataToGitHub(savedSheets);
-        } else {
-            localStorage.setItem('hisaabKitaabSheets', JSON.stringify(savedSheets));
-        }
-        
+        saveDataToGitHub(savedSheets);
         loadSavedSheets();
         closeSheet();
         hideDeleteConfirmation();
@@ -939,13 +827,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function loadSavedSheets() {
-        console.log('📋 UI: Loading sheets into UI, count:', savedSheets.length);
-        console.log('📋 UI: Sheet data:', savedSheets);
-        
         if (savedSheets.length === 0) {
             noSheetsMessage.style.display = 'block';
             sheetsList.style.display = 'none';
-            console.log('📋 UI: No sheets to display');
             return;
         }
         
@@ -992,21 +876,13 @@ document.addEventListener('DOMContentLoaded', function() {
             
             sheetsList.appendChild(sheetItem);
         });
-        
-        console.log('✅ UI: Successfully loaded', savedSheets.length, 'sheets into UI');
     }
     
     function deleteSheet(sheetId) {
         if (!isAdmin) return;
         
         savedSheets = savedSheets.filter(sheet => sheet.id !== sheetId);
-        
-        if (useGitHub && githubConfig) {
-            saveDataToGitHub(savedSheets);
-        } else {
-            localStorage.setItem('hisaabKitaabSheets', JSON.stringify(savedSheets));
-        }
-        
+        saveDataToGitHub(savedSheets);
         loadSavedSheets();
         
         if (currentSheetData && currentSheetData.id === sheetId) {
