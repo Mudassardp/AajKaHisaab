@@ -57,13 +57,13 @@ document.addEventListener('DOMContentLoaded', function() {
     let savedSheets = [];
     let isAdmin = false;
     
-    // ⚠️ IMPORTANT: REPLACE THESE WITH YOUR ACTUAL GITHUB CREDENTIALS ⚠️
+    // ⚠️ REPLACE THESE WITH YOUR ACTUAL GITHUB CREDENTIALS ⚠️
     const GITHUB_CONFIG = {
-        username: 'mudassardp',      // Replace with your GitHub username
-        repository: 'hisaabkitaab-data',       // Replace if different
+        username: 'mudassardp',      // ← Replace with your GitHub username
+        repository: 'hisaabkitaab-data',       // ← Your repository name
         branch: 'main',
         filePath: 'data/sheets.json',
-        token: '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'    // Replace with your token
+        token: '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'    // ← Replace with your token (for admin writes)
     };
     
     const ADMIN_PASSWORD = "226622";
@@ -80,6 +80,8 @@ document.addEventListener('DOMContentLoaded', function() {
         setupEventListeners();
         checkAdminStatus();
         loadData();
+        // Hide GitHub config modal since we're using hardcoded config
+        hideGithubConfigModal();
     }
     
     function setupEventListeners() {
@@ -89,8 +91,10 @@ document.addEventListener('DOMContentLoaded', function() {
         cancelAdminLoginBtn.addEventListener('click', hideAdminLoginModal);
         logoutBtn.addEventListener('click', handleLogout);
         
-        // Sheet Management
+        // Data Management
         refreshDataBtn.addEventListener('click', loadData);
+        
+        // Sheet Management
         createBtn.addEventListener('click', showParticipantsSection);
         createSheetBtn.addEventListener('click', createNewSheet);
         calculateBtn.addEventListener('click', calculateShares);
@@ -117,22 +121,31 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // GitHub Cloud Storage Functions
-    function loadData() {
+    function hideGithubConfigModal() {
+        if (githubConfigModal) {
+            githubConfigModal.style.display = 'none';
+        }
+    }
+    
+    async function loadData() {
         setSyncStatus('syncing', 'Loading...');
         
         try {
-            const data = loadDataFromGitHub();
+            const data = await loadDataFromGitHub();
             if (data && data.sheets) {
                 savedSheets = data.sheets;
                 setSyncStatus('success', 'Synced');
+                updateStorageUI('GitHub Cloud');
             } else {
                 loadFromLocalStorage();
                 setSyncStatus('success', 'Local data');
+                updateStorageUI('Local Storage');
             }
         } catch (error) {
             console.error('Load data error:', error);
             loadFromLocalStorage();
             setSyncStatus('error', 'Load failed - using local');
+            updateStorageUI('Local Storage');
         }
         
         loadSavedSheets();
@@ -165,8 +178,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     // GitHub is empty - check local storage
                     loadFromLocalStorage();
                     
-                    if (savedSheets.length > 0) {
-                        // Upload local data to GitHub
+                    if (savedSheets.length > 0 && isAdmin) {
+                        // Upload local data to GitHub (admin only)
                         await saveDataToGitHub(savedSheets);
                         return { sheets: savedSheets };
                     } else {
@@ -175,6 +188,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 
             } else if (response.status === 404) {
+                // File doesn't exist yet
                 loadFromLocalStorage();
                 return { sheets: savedSheets };
             } else {
@@ -270,8 +284,21 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function setSyncStatus(type, message) {
-        syncStatus.textContent = message;
-        syncStatus.className = `sync-status ${type}`;
+        if (syncStatus) {
+            syncStatus.textContent = message;
+            syncStatus.className = `sync-status ${type}`;
+        }
+    }
+    
+    function updateStorageUI(type) {
+        if (storageTypeElement) {
+            storageTypeElement.textContent = type;
+            if (type === 'GitHub Cloud') {
+                storageTypeElement.className = 'cloud-storage-badge';
+            } else {
+                storageTypeElement.className = 'local-storage-badge';
+            }
+        }
     }
     
     // User Management Functions
@@ -321,53 +348,30 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function updateUIForAdmin() {
         userTypeDisplay.textContent = 'Admin Mode';
-        logoutBtn.style.display = 'inline-block';
-        loginSection.style.display = 'none';
-        adminSections.style.display = 'block';
-        calculateBtn.style.display = 'inline-block';
-        saveCloseBtn.style.display = 'inline-block';
-        adminSheetActions.style.display = 'flex';
-        closeSheetBtn.style.display = 'none';
-        updateStorageUI('GitHub Cloud');
+        if (logoutBtn) logoutBtn.style.display = 'inline-block';
+        if (loginSection) loginSection.style.display = 'none';
+        if (adminSections) adminSections.style.display = 'block';
+        if (calculateBtn) calculateBtn.style.display = 'inline-block';
+        if (saveCloseBtn) saveCloseBtn.style.display = 'inline-block';
+        if (adminSheetActions) adminSheetActions.style.display = 'flex';
+        if (closeSheetBtn) closeSheetBtn.style.display = 'none';
         loadSavedSheets();
     }
     
     function updateUIForViewer() {
         userTypeDisplay.textContent = 'Viewer Mode';
-        logoutBtn.style.display = 'none';
-        loginSection.style.display = 'block';
-        adminSections.style.display = 'none';
-        calculateBtn.style.display = 'none';
-        saveCloseBtn.style.display = 'none';
-        adminSheetActions.style.display = 'none';
-        participantsSection.style.display = 'none';
-        editParticipantsSection.style.display = 'none';
-        closeSheetBtn.style.display = 'inline-block';
-        updateStorageUI('GitHub Cloud');
+        if (logoutBtn) logoutBtn.style.display = 'none';
+        if (loginSection) loginSection.style.display = 'block';
+        if (adminSections) adminSections.style.display = 'none';
+        if (calculateBtn) calculateBtn.style.display = 'none';
+        if (saveCloseBtn) saveCloseBtn.style.display = 'none';
+        if (adminSheetActions) adminSheetActions.style.display = 'none';
+        if (participantsSection) participantsSection.style.display = 'none';
+        if (editParticipantsSection) editParticipantsSection.style.display = 'none';
+        if (closeSheetBtn) closeSheetBtn.style.display = 'inline-block';
         loadSavedSheets();
     }
     
-    function updateStorageUI(type) {
-        storageTypeElement.textContent = type;
-        if (type === 'GitHub Cloud') {
-            storageTypeElement.className = 'cloud-storage-badge';
-        } else {
-            storageTypeElement.className = 'local-storage-badge';
-        }
-    }
-
-    // Hide GitHub configuration modal immediately
-    document.addEventListener('DOMContentLoaded', function() {
-        const githubConfigModal = document.getElementById('githubConfigModal');
-        if (githubConfigModal) {
-            githubConfigModal.style.display = 'none';
-        }
-    });
-    
-    // The rest of your functions remain exactly the same...
-    // [Include all the remaining functions from your previous script.js]
-    // Only the GitHub configuration part is changed
-
     // Sheet Management Functions
     function showParticipantsSection() {
         if (!isAdmin) return;
