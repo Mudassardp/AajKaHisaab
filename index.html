@@ -13,7 +13,6 @@
             <p class="tagline">Split expenses with friends and family easily</p>
             <div id="userStatus" class="user-status">
                 <span id="userTypeDisplay">Viewer Mode</span>
-                <span id="syncStatus" class="sync-status"></span>
                 <button id="logoutBtn" class="btn btn-small" style="display: none;">Logout</button>
             </div>
         </header>
@@ -41,31 +40,6 @@
                 </div>
             </div>
             
-            <!-- GitHub Config Modal -->
-            <div id="githubConfigModal" class="modal">
-                <div class="modal-content">
-                    <h3>GitHub Configuration Required</h3>
-                    <p>To enable cloud storage, please configure your GitHub settings:</p>
-                    <div class="form-group">
-                        <label>GitHub Username:</label>
-                        <input type="text" id="githubUsernameInput" placeholder="your-github-username" class="form-input">
-                    </div>
-                    <div class="form-group">
-                        <label>Repository Name:</label>
-                        <input type="text" id="githubRepoInput" value="hisaabkitaab-data" class="form-input">
-                    </div>
-                    <div class="form-group">
-                        <label>Personal Access Token:</label>
-                        <input type="password" id="githubTokenInput" placeholder="ghp_..." class="form-input">
-                        <small style="color: #666; font-size: 0.8rem;">Get this from GitHub Settings → Developer settings → Personal access tokens</small>
-                    </div>
-                    <div class="modal-buttons" style="margin-top: 20px;">
-                        <button id="saveGithubConfigBtn" class="btn btn-success">Save Configuration</button>
-                        <button id="skipGithubConfigBtn" class="btn">Skip (Use Local Storage)</button>
-                    </div>
-                </div>
-            </div>
-            
             <!-- Existing Sheets Section (Visible to all users) -->
             <div class="existing-sheets-section">
                 <h2>Existing Expense Sheets</h2>
@@ -73,9 +47,6 @@
                 <div id="sheetsListContainer">
                     <div class="no-sheets" id="noSheetsMessage">No saved sheets found.</div>
                     <ul id="sheetsList" class="sheets-list" style="display: none;"></ul>
-                </div>
-                <div class="action-buttons">
-                    <button id="refreshDataBtn" class="btn btn-small">Refresh Data</button>
                 </div>
             </div>
             
@@ -216,7 +187,7 @@
         </div>
         
         <footer>
-            <p>HisaabKitaab © 2025 | <span id="storageType">Local Storage</span></p>
+            <p>HisaabKitaab © 2025</p>
         </footer>
     </div>
 
