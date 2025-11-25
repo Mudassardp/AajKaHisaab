@@ -50,9 +50,16 @@ document.addEventListener('DOMContentLoaded', function() {
     // Application State
     let selectedParticipants = [];
     let currentSheetData = null;
-    let savedSheets = JSON.parse(localStorage.getItem('hisaabKitaabSheets')) || [];
+    let savedSheets = [];
     let isAdmin = false;
     const ADMIN_PASSWORD = "226622";
+    
+    // GitHub Configuration
+    const GITHUB_USERNAME = "Mudassardp";
+    const GITHUB_TOKEN = "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";
+    const GITHUB_REPO = "hisaabkitaab-data";
+    const GITHUB_DATA_FILE = "data.json";
+    const GITHUB_API_BASE = "https://api.github.com";
     
     // Define the 15 default participants with Mohsin at position 11
     const defaultParticipants = [
@@ -65,9 +72,9 @@ document.addEventListener('DOMContentLoaded', function() {
     initApp();
     
     function initApp() {
-        loadSavedSheets();
         setupEventListeners();
         checkAdminStatus();
+        loadSavedSheets();
     }
     
     function setupEventListeners() {
@@ -101,6 +108,125 @@ document.addEventListener('DOMContentLoaded', function() {
         editParticipantsBtn.addEventListener('click', openEditParticipants);
         updateParticipantsBtn.addEventListener('click', updateParticipants);
         cancelEditBtn.addEventListener('click', cancelEditParticipants);
+    }
+    
+    // GitHub API Functions
+    async function loadSavedSheets() {
+        try {
+            showLoadingState(true);
+            const response = await fetch(
+                `${GITHUB_API_BASE}/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/${GITHUB_DATA_FILE}`,
+                {
+                    headers: {
+                        'Authorization': `token ${GITHUB_TOKEN}`,
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                }
+            );
+            
+            if (response.status === 404) {
+                // File doesn't exist yet, start with empty array
+                savedSheets = [];
+                renderSheetsList();
+                return;
+            }
+            
+            if (!response.ok) {
+                throw new Error(`GitHub API error: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            const content = JSON.parse(atob(data.content));
+            savedSheets = content.sheets || [];
+            renderSheetsList();
+        } catch (error) {
+            console.error('Error loading data from GitHub:', error);
+            // Fallback to localStorage if GitHub fails
+            const localData = localStorage.getItem('hisaabKitaabSheets');
+            if (localData) {
+                savedSheets = JSON.parse(localData);
+                renderSheetsList();
+            } else {
+                savedSheets = [];
+                renderSheetsList();
+            }
+            alert('Warning: Could not load data from cloud. Using local backup.');
+        } finally {
+            showLoadingState(false);
+        }
+    }
+    
+    async function saveSheetsToGitHub() {
+        try {
+            // First, get the current file to get its SHA (if it exists)
+            let sha = null;
+            try {
+                const getResponse = await fetch(
+                    `${GITHUB_API_BASE}/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/${GITHUB_DATA_FILE}`,
+                    {
+                        headers: {
+                            'Authorization': `token ${GITHUB_TOKEN}`,
+                            'Accept': 'application/vnd.github.v3+json'
+                        }
+                    }
+                );
+                
+                if (getResponse.ok) {
+                    const data = await getResponse.json();
+                    sha = data.sha;
+                }
+            } catch (error) {
+                // File doesn't exist, that's fine
+            }
+            
+            const content = {
+                sheets: savedSheets,
+                lastUpdated: new Date().toISOString()
+            };
+            
+            const payload = {
+                message: `Update expense sheets - ${new Date().toLocaleString()}`,
+                content: btoa(JSON.stringify(content, null, 2)),
+                sha: sha
+            };
+            
+            const response = await fetch(
+                `${GITHUB_API_BASE}/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/${GITHUB_DATA_FILE}`,
+                {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `token ${GITHUB_TOKEN}`,
+                        'Accept': 'application/vnd.github.v3+json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                }
+            );
+            
+            if (!response.ok) {
+                throw new Error(`GitHub API error: ${response.status}`);
+            }
+            
+            // Also save to localStorage as backup
+            localStorage.setItem('hisaabKitaabSheets', JSON.stringify(savedSheets));
+            
+            return true;
+        } catch (error) {
+            console.error('Error saving data to GitHub:', error);
+            // Fallback to localStorage
+            localStorage.setItem('hisaabKitaabSheets', JSON.stringify(savedSheets));
+            alert('Warning: Could not save to cloud. Data saved locally only.');
+            return false;
+        }
+    }
+    
+    function showLoadingState(show) {
+        // You can add a loading spinner here if needed
+        if (show) {
+            console.log('Loading data from GitHub...');
+        } else {
+            console.log('Data loading complete');
+        }
     }
     
     // User Management Functions
@@ -156,7 +282,7 @@ document.addEventListener('DOMContentLoaded', function() {
         calculateBtn.style.display = 'inline-block';
         saveCloseBtn.style.display = 'inline-block';
         adminSheetActions.style.display = 'flex';
-        closeSheetBtn.style.display = 'none'; // Hide close sheet button for admin
+        closeSheetBtn.style.display = 'none';
     }
     
     function updateUIForViewer() {
@@ -169,9 +295,7 @@ document.addEventListener('DOMContentLoaded', function() {
         adminSheetActions.style.display = 'none';
         participantsSection.style.display = 'none';
         editParticipantsSection.style.display = 'none';
-        closeSheetBtn.style.display = 'inline-block'; // Show close sheet button for viewer
-        
-        // Show only saved sheets for viewers
+        closeSheetBtn.style.display = 'inline-block';
         loadSavedSheets();
     }
     
@@ -445,13 +569,13 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    function saveAndCloseSheet() {
+    async function saveAndCloseSheet() {
         if (!isAdmin) return;
-        saveSheet();
+        await saveSheet();
         closeSheet();
     }
     
-    function saveSheet() {
+    async function saveSheet() {
         if (!currentSheetData || !isAdmin) return;
         
         calculateShares();
@@ -463,9 +587,9 @@ document.addEventListener('DOMContentLoaded', function() {
             savedSheets.push(currentSheetData);
         }
         
-        localStorage.setItem('hisaabKitaabSheets', JSON.stringify(savedSheets));
+        await saveSheetsToGitHub();
         loadSavedSheets();
-        alert('Sheet saved successfully!');
+        alert('Sheet saved successfully to cloud!');
     }
     
     function closeSheet() {
@@ -485,15 +609,15 @@ document.addEventListener('DOMContentLoaded', function() {
         deleteModal.style.display = 'none';
     }
     
-    function deleteCurrentSheet() {
+    async function deleteCurrentSheet() {
         if (!currentSheetData || !isAdmin) return;
         
         savedSheets = savedSheets.filter(sheet => sheet.id !== currentSheetData.id);
-        localStorage.setItem('hisaabKitaabSheets', JSON.stringify(savedSheets));
+        await saveSheetsToGitHub();
         loadSavedSheets();
         closeSheet();
         hideDeleteConfirmation();
-        alert('Sheet deleted successfully!');
+        alert('Sheet deleted successfully from cloud!');
     }
     
     // Participants Management Functions
@@ -633,7 +757,7 @@ document.addEventListener('DOMContentLoaded', function() {
         settlementList.innerHTML = '<div class="no-settlements">Calculate shares to see settlement suggestions</div>';
     }
     
-    function loadSavedSheets() {
+    function renderSheetsList() {
         if (savedSheets.length === 0) {
             noSheetsMessage.style.display = 'block';
             sheetsList.style.display = 'none';
@@ -685,18 +809,18 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    function deleteSheet(sheetId) {
+    async function deleteSheet(sheetId) {
         if (!isAdmin) return;
         
         savedSheets = savedSheets.filter(sheet => sheet.id !== sheetId);
-        localStorage.setItem('hisaabKitaabSheets', JSON.stringify(savedSheets));
+        await saveSheetsToGitHub();
         loadSavedSheets();
         
         if (currentSheetData && currentSheetData.id === sheetId) {
             closeSheet();
         }
         
-        alert('Sheet deleted successfully!');
+        alert('Sheet deleted successfully from cloud!');
     }
     
     function openSheet(sheetId) {
