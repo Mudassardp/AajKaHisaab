@@ -54,12 +54,8 @@ document.addEventListener('DOMContentLoaded', function() {
     let isAdmin = false;
     const ADMIN_PASSWORD = "226622";
     
-    // GitHub Configuration
-    const GITHUB_USERNAME = "Mudassardp";
-    const GITHUB_TOKEN = "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";
-    const GITHUB_REPO = "hisaabkitaab-data";
-    const GITHUB_DATA_FILE = "data.json";
-    const GITHUB_API_BASE = "https://api.github.com";
+    // Google Apps Script Web App URL - REPLACE WITH YOUR ACTUAL URL
+    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyTW4osy5OsjLELoKC7EgIMOzE3CpfFKAo1xxeIuNLfhHz4lRdUxHvHjcN0t9YfE2FY/exec';
     
     // Define the 15 default participants with Mohsin at position 11
     const defaultParticipants = [
@@ -110,123 +106,116 @@ document.addEventListener('DOMContentLoaded', function() {
         cancelEditBtn.addEventListener('click', cancelEditParticipants);
     }
     
-    // GitHub API Functions
+    // Google Sheets Cloud Storage Functions
     async function loadSavedSheets() {
         try {
-            showLoadingState(true);
-            const response = await fetch(
-                `${GITHUB_API_BASE}/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/${GITHUB_DATA_FILE}`,
-                {
-                    headers: {
-                        'Authorization': `token ${GITHUB_TOKEN}`,
-                        'Accept': 'application/vnd.github.v3+json'
-                    }
-                }
-            );
+            console.log('Loading data from Google Sheets...');
             
-            if (response.status === 404) {
-                // File doesn't exist yet, start with empty array
-                savedSheets = [];
+            const url = `${GOOGLE_SCRIPT_URL}?action=getSheets&timestamp=${Date.now()}`;
+            const response = await fetch(url);
+            
+            if (response.ok) {
+                const data = await response.json();
+                savedSheets = data.sheets || [];
+                console.log('Successfully loaded data from Google Sheets:', savedSheets.length, 'sheets');
                 renderSheetsList();
+                showNotification('Data loaded from cloud successfully!', 'success');
                 return;
             }
             
-            if (!response.ok) {
-                throw new Error(`GitHub API error: ${response.status}`);
-            }
+            throw new Error(`HTTP error! status: ${response.status}`);
             
-            const data = await response.json();
-            const content = JSON.parse(atob(data.content));
-            savedSheets = content.sheets || [];
-            renderSheetsList();
         } catch (error) {
-            console.error('Error loading data from GitHub:', error);
-            // Fallback to localStorage if GitHub fails
+            console.error('Error loading from Google Sheets:', error);
+            // Fallback to localStorage
             const localData = localStorage.getItem('hisaabKitaabSheets');
             if (localData) {
                 savedSheets = JSON.parse(localData);
-                renderSheetsList();
+                console.log('Loaded data from localStorage backup:', savedSheets.length, 'sheets');
+                showNotification('Using local backup data (cloud unavailable)', 'warning');
             } else {
                 savedSheets = [];
-                renderSheetsList();
+                console.log('No data found, starting fresh');
+                showNotification('Starting with empty data', 'info');
             }
-            alert('Warning: Could not load data from cloud. Using local backup.');
-        } finally {
-            showLoadingState(false);
+            renderSheetsList();
         }
     }
     
-    async function saveSheetsToGitHub() {
+    async function saveSheetsToCloud() {
         try {
-            // First, get the current file to get its SHA (if it exists)
-            let sha = null;
-            try {
-                const getResponse = await fetch(
-                    `${GITHUB_API_BASE}/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/${GITHUB_DATA_FILE}`,
-                    {
-                        headers: {
-                            'Authorization': `token ${GITHUB_TOKEN}`,
-                            'Accept': 'application/vnd.github.v3+json'
-                        }
-                    }
-                );
-                
-                if (getResponse.ok) {
-                    const data = await getResponse.json();
-                    sha = data.sha;
-                }
-            } catch (error) {
-                // File doesn't exist, that's fine
-            }
+            console.log('Saving data to Google Sheets...');
             
-            const content = {
+            const dataToSave = {
                 sheets: savedSheets,
-                lastUpdated: new Date().toISOString()
+                lastUpdated: new Date().toISOString(),
+                totalSheets: savedSheets.length
             };
             
-            const payload = {
-                message: `Update expense sheets - ${new Date().toLocaleString()}`,
-                content: btoa(JSON.stringify(content, null, 2)),
-                sha: sha
-            };
+            const formData = new FormData();
+            formData.append('action', 'saveSheets');
+            formData.append('data', JSON.stringify(dataToSave));
             
-            const response = await fetch(
-                `${GITHUB_API_BASE}/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/${GITHUB_DATA_FILE}`,
-                {
-                    method: 'PUT',
-                    headers: {
-                        'Authorization': `token ${GITHUB_TOKEN}`,
-                        'Accept': 'application/vnd.github.v3+json',
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(payload)
-                }
-            );
+            const response = await fetch(GOOGLE_SCRIPT_URL, {
+                method: 'POST',
+                body: formData
+            });
             
-            if (!response.ok) {
-                throw new Error(`GitHub API error: ${response.status}`);
+            if (response.ok) {
+                const result = await response.json();
+                // Also save to localStorage as backup
+                localStorage.setItem('hisaabKitaabSheets', JSON.stringify(savedSheets));
+                console.log('Successfully saved data to Google Sheets and localStorage');
+                return true;
+            } else {
+                throw new Error(`HTTP error! status: ${response.status}`);
             }
             
-            // Also save to localStorage as backup
-            localStorage.setItem('hisaabKitaabSheets', JSON.stringify(savedSheets));
-            
-            return true;
         } catch (error) {
-            console.error('Error saving data to GitHub:', error);
-            // Fallback to localStorage
+            console.error('Error saving to Google Sheets:', error);
+            // Fallback to localStorage only
             localStorage.setItem('hisaabKitaabSheets', JSON.stringify(savedSheets));
-            alert('Warning: Could not save to cloud. Data saved locally only.');
+            showNotification('Data saved locally (cloud sync failed)', 'warning');
             return false;
         }
     }
     
-    function showLoadingState(show) {
-        // You can add a loading spinner here if needed
-        if (show) {
-            console.log('Loading data from GitHub...');
-        } else {
-            console.log('Data loading complete');
-        }
+    function showNotification(message, type = 'info') {
+        // Remove any existing notifications
+        const existingNotifications = document.querySelectorAll('.custom-notification');
+        existingNotifications.forEach(notification => notification.remove());
+        
+        // Create notification element
+        const notification = document.createElement('div');
+        notification.className = `custom-notification ${type}`;
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 8px;
+            color: white;
+            font-weight: bold;
+            z-index: 10000;
+            max-width: 400px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transition: all 0.3s ease;
+            background-color: ${type === 'warning' ? '#e74c3c' : type === 'success' ? '#2ecc71' : '#3498db'};
+            border-left: 4px solid ${type === 'warning' ? '#c0392b' : type === 'success' ? '#27ae60' : '#2980b9'};
+        `;
+        
+        notification.textContent = message;
+        document.body.appendChild(notification);
+        
+        // Remove notification after 5 seconds
+        setTimeout(() => {
+            notification.style.opacity = '0';
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 300);
+        }, 5000);
     }
     
     // User Management Functions
@@ -258,9 +247,9 @@ document.addEventListener('DOMContentLoaded', function() {
             localStorage.setItem('hisaabKitaabAdmin', 'true');
             updateUIForAdmin();
             hideAdminLoginModal();
-            alert('Admin login successful!');
+            showNotification('Admin login successful!', 'success');
         } else {
-            alert('Incorrect password. Please try again.');
+            showNotification('Incorrect password. Please try again.', 'warning');
             adminPasswordInput.value = '';
             adminPasswordInput.focus();
         }
@@ -271,7 +260,7 @@ document.addEventListener('DOMContentLoaded', function() {
         localStorage.removeItem('hisaabKitaabAdmin');
         updateUIForViewer();
         closeSheet();
-        alert('Logged out successfully.');
+        showNotification('Logged out successfully.', 'success');
     }
     
     function updateUIForAdmin() {
@@ -343,7 +332,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         
         if (selectedParticipants.length === 0) {
-            alert('Please select at least one participant');
+            showNotification('Please select at least one participant', 'warning');
             return;
         }
         
@@ -587,9 +576,14 @@ document.addEventListener('DOMContentLoaded', function() {
             savedSheets.push(currentSheetData);
         }
         
-        await saveSheetsToGitHub();
+        const success = await saveSheetsToCloud();
         loadSavedSheets();
-        alert('Sheet saved successfully to cloud!');
+        
+        if (success) {
+            showNotification('Sheet saved successfully to cloud!', 'success');
+        } else {
+            showNotification('Sheet saved locally (cloud sync failed)', 'warning');
+        }
     }
     
     function closeSheet() {
@@ -613,11 +607,16 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!currentSheetData || !isAdmin) return;
         
         savedSheets = savedSheets.filter(sheet => sheet.id !== currentSheetData.id);
-        await saveSheetsToGitHub();
+        const success = await saveSheetsToCloud();
         loadSavedSheets();
         closeSheet();
         hideDeleteConfirmation();
-        alert('Sheet deleted successfully from cloud!');
+        
+        if (success) {
+            showNotification('Sheet deleted successfully from cloud!', 'success');
+        } else {
+            showNotification('Sheet deleted locally (cloud sync failed)', 'warning');
+        }
     }
     
     // Participants Management Functions
@@ -626,7 +625,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const customName = inputElement.value.trim();
         if (!customName) {
-            alert('Please enter a participant name');
+            showNotification('Please enter a participant name', 'warning');
             return;
         }
         
@@ -635,7 +634,7 @@ document.addEventListener('DOMContentLoaded', function() {
         );
         
         if (existingParticipants.includes(customName)) {
-            alert('This participant already exists in the list');
+            showNotification('This participant already exists in the list', 'warning');
             inputElement.value = '';
             return;
         }
@@ -650,7 +649,7 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
         listElement.appendChild(participant);
         inputElement.value = '';
-        alert(`Participant "${customName}" added successfully!`);
+        showNotification(`Participant "${customName}" added successfully!`, 'success');
     }
     
     function addCustomParticipantToEdit(inputElement, listElement) {
@@ -658,7 +657,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const customName = inputElement.value.trim();
         if (!customName) {
-            alert('Please enter a participant name');
+            showNotification('Please enter a participant name', 'warning');
             return;
         }
         
@@ -667,7 +666,7 @@ document.addEventListener('DOMContentLoaded', function() {
         );
         
         if (existingParticipants.includes(customName)) {
-            alert('This participant already exists in the list');
+            showNotification('This participant already exists in the list', 'warning');
             inputElement.value = '';
             return;
         }
@@ -713,7 +712,7 @@ document.addEventListener('DOMContentLoaded', function() {
         );
         
         if (updatedParticipants.length === 0) {
-            alert('Please add at least one participant');
+            showNotification('Please add at least one participant', 'warning');
             return;
         }
         
@@ -738,7 +737,7 @@ document.addEventListener('DOMContentLoaded', function() {
         calculateShares();
         editParticipantsSection.style.display = 'none';
         sheetSection.style.display = 'block';
-        alert('Participants updated successfully!');
+        showNotification('Participants updated successfully!', 'success');
     }
     
     function cancelEditParticipants() {
@@ -813,20 +812,24 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!isAdmin) return;
         
         savedSheets = savedSheets.filter(sheet => sheet.id !== sheetId);
-        await saveSheetsToGitHub();
+        const success = await saveSheetsToCloud();
         loadSavedSheets();
         
         if (currentSheetData && currentSheetData.id === sheetId) {
             closeSheet();
         }
         
-        alert('Sheet deleted successfully from cloud!');
+        if (success) {
+            showNotification('Sheet deleted successfully from cloud!', 'success');
+        } else {
+            showNotification('Sheet deleted locally (cloud sync failed)', 'warning');
+        }
     }
     
     function openSheet(sheetId) {
         const sheet = savedSheets.find(s => s.id === sheetId);
         if (!sheet) {
-            alert('Sheet not found!');
+            showNotification('Sheet not found!', 'warning');
             return;
         }
         
