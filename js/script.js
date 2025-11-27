@@ -21,6 +21,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const tableBody = document.getElementById('tableBody');
     const calculateBtn = document.getElementById('calculateBtn');
     const saveCloseBtn = document.getElementById('saveCloseBtn');
+    const sharePdfBtn = document.getElementById('sharePdfBtn');
     const closeSheetBtn = document.getElementById('closeSheetBtn');
     const deleteSheetBtn = document.getElementById('deleteSheetBtn');
     const editParticipantsBtn = document.getElementById('editParticipantsBtn');
@@ -46,16 +47,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const editCustomParticipantInput = document.getElementById('editCustomParticipantInput');
     const editAddCustomParticipantBtn = document.getElementById('editAddCustomParticipantBtn');
     const editParticipantsList = document.getElementById('editParticipantsList');
+    const totalMealsSummary = document.getElementById('totalMealsSummary');
     
     // Application State
     let selectedParticipants = [];
     let currentSheetData = null;
-    let savedSheets = [];
+    let savedSheets = JSON.parse(localStorage.getItem('hisaabKitaabSheets')) || [];
     let isAdmin = false;
     const ADMIN_PASSWORD = "226622";
-    
-    // Google Apps Script Web App URL - REPLACE WITH YOUR ACTUAL URL
-    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyTW4osy5OsjLELoKC7EgIMOzE3CpfFKAo1xxeIuNLfhHz4lRdUxHvHjcN0t9YfE2FY/exec';
     
     // Define the 15 default participants with Mohsin at position 11
     const defaultParticipants = [
@@ -68,10 +67,16 @@ document.addEventListener('DOMContentLoaded', function() {
     initApp();
     
     function initApp() {
+        loadSavedSheets();
         setupEventListeners();
         checkAdminStatus();
-        loadSavedSheets();
-    }
+        // NEW: Initialize Firebase sync
+    setTimeout(() => {
+        if (window.firebaseSync) {
+            window.firebaseSync.initialize();
+        }
+    }, 1000);
+}
     
     function setupEventListeners() {
         // User Management
@@ -79,12 +84,20 @@ document.addEventListener('DOMContentLoaded', function() {
         confirmAdminLoginBtn.addEventListener('click', handleAdminLogin);
         cancelAdminLoginBtn.addEventListener('click', hideAdminLoginModal);
         logoutBtn.addEventListener('click', handleLogout);
+
+        // Add this in setupEventListeners()
+        document.getElementById('manualSyncBtn')?.addEventListener('click', () => {
+    if (window.firebaseSync) {
+        window.firebaseSync.manualSync();
+    }
+});
         
         // Sheet Management
         createBtn.addEventListener('click', showParticipantsSection);
         createSheetBtn.addEventListener('click', createNewSheet);
         calculateBtn.addEventListener('click', calculateShares);
         saveCloseBtn.addEventListener('click', saveAndCloseSheet);
+        sharePdfBtn.addEventListener('click', handlePDFGeneration);
         closeSheetBtn.addEventListener('click', closeSheet);
         deleteSheetBtn.addEventListener('click', showDeleteConfirmation);
         confirmDeleteBtn.addEventListener('click', deleteCurrentSheet);
@@ -104,118 +117,6 @@ document.addEventListener('DOMContentLoaded', function() {
         editParticipantsBtn.addEventListener('click', openEditParticipants);
         updateParticipantsBtn.addEventListener('click', updateParticipants);
         cancelEditBtn.addEventListener('click', cancelEditParticipants);
-    }
-    
-    // Google Sheets Cloud Storage Functions
-    async function loadSavedSheets() {
-        try {
-            console.log('Loading data from Google Sheets...');
-            
-            const url = `${GOOGLE_SCRIPT_URL}?action=getSheets&timestamp=${Date.now()}`;
-            const response = await fetch(url);
-            
-            if (response.ok) {
-                const data = await response.json();
-                savedSheets = data.sheets || [];
-                console.log('Successfully loaded data from Google Sheets:', savedSheets.length, 'sheets');
-                renderSheetsList();
-                showNotification('Data loaded from cloud successfully!', 'success');
-                return;
-            }
-            
-            throw new Error(`HTTP error! status: ${response.status}`);
-            
-        } catch (error) {
-            console.error('Error loading from Google Sheets:', error);
-            // Fallback to localStorage
-            const localData = localStorage.getItem('hisaabKitaabSheets');
-            if (localData) {
-                savedSheets = JSON.parse(localData);
-                console.log('Loaded data from localStorage backup:', savedSheets.length, 'sheets');
-                showNotification('Using local backup data (cloud unavailable)', 'warning');
-            } else {
-                savedSheets = [];
-                console.log('No data found, starting fresh');
-                showNotification('Starting with empty data', 'info');
-            }
-            renderSheetsList();
-        }
-    }
-    
-    async function saveSheetsToCloud() {
-        try {
-            console.log('Saving data to Google Sheets...');
-            
-            const dataToSave = {
-                sheets: savedSheets,
-                lastUpdated: new Date().toISOString(),
-                totalSheets: savedSheets.length
-            };
-            
-            const formData = new FormData();
-            formData.append('action', 'saveSheets');
-            formData.append('data', JSON.stringify(dataToSave));
-            
-            const response = await fetch(GOOGLE_SCRIPT_URL, {
-                method: 'POST',
-                body: formData
-            });
-            
-            if (response.ok) {
-                const result = await response.json();
-                // Also save to localStorage as backup
-                localStorage.setItem('hisaabKitaabSheets', JSON.stringify(savedSheets));
-                console.log('Successfully saved data to Google Sheets and localStorage');
-                return true;
-            } else {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
-        } catch (error) {
-            console.error('Error saving to Google Sheets:', error);
-            // Fallback to localStorage only
-            localStorage.setItem('hisaabKitaabSheets', JSON.stringify(savedSheets));
-            showNotification('Data saved locally (cloud sync failed)', 'warning');
-            return false;
-        }
-    }
-    
-    function showNotification(message, type = 'info') {
-        // Remove any existing notifications
-        const existingNotifications = document.querySelectorAll('.custom-notification');
-        existingNotifications.forEach(notification => notification.remove());
-        
-        // Create notification element
-        const notification = document.createElement('div');
-        notification.className = `custom-notification ${type}`;
-        notification.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 15px 20px;
-            border-radius: 8px;
-            color: white;
-            font-weight: bold;
-            z-index: 10000;
-            max-width: 400px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            transition: all 0.3s ease;
-            background-color: ${type === 'warning' ? '#e74c3c' : type === 'success' ? '#2ecc71' : '#3498db'};
-            border-left: 4px solid ${type === 'warning' ? '#c0392b' : type === 'success' ? '#27ae60' : '#2980b9'};
-        `;
-        
-        notification.textContent = message;
-        document.body.appendChild(notification);
-        
-        // Remove notification after 5 seconds
-        setTimeout(() => {
-            notification.style.opacity = '0';
-            setTimeout(() => {
-                if (notification.parentNode) {
-                    notification.parentNode.removeChild(notification);
-                }
-            }, 300);
-        }, 5000);
     }
     
     // User Management Functions
@@ -247,9 +148,9 @@ document.addEventListener('DOMContentLoaded', function() {
             localStorage.setItem('hisaabKitaabAdmin', 'true');
             updateUIForAdmin();
             hideAdminLoginModal();
-            showNotification('Admin login successful!', 'success');
+            alert('Admin login successful!');
         } else {
-            showNotification('Incorrect password. Please try again.', 'warning');
+            alert('Incorrect password. Please try again.');
             adminPasswordInput.value = '';
             adminPasswordInput.focus();
         }
@@ -260,7 +161,7 @@ document.addEventListener('DOMContentLoaded', function() {
         localStorage.removeItem('hisaabKitaabAdmin');
         updateUIForViewer();
         closeSheet();
-        showNotification('Logged out successfully.', 'success');
+        alert('Logged out successfully.');
     }
     
     function updateUIForAdmin() {
@@ -270,8 +171,11 @@ document.addEventListener('DOMContentLoaded', function() {
         adminSections.style.display = 'block';
         calculateBtn.style.display = 'inline-block';
         saveCloseBtn.style.display = 'inline-block';
+        sharePdfBtn.style.display = 'inline-block';
         adminSheetActions.style.display = 'flex';
         closeSheetBtn.style.display = 'none';
+        totalMealsSummary.style.display = 'flex';
+        loadSavedSheets();
     }
     
     function updateUIForViewer() {
@@ -281,10 +185,12 @@ document.addEventListener('DOMContentLoaded', function() {
         adminSections.style.display = 'none';
         calculateBtn.style.display = 'none';
         saveCloseBtn.style.display = 'none';
+        sharePdfBtn.style.display = 'inline-block';
         adminSheetActions.style.display = 'none';
         participantsSection.style.display = 'none';
         editParticipantsSection.style.display = 'none';
         closeSheetBtn.style.display = 'inline-block';
+        totalMealsSummary.style.display = 'none';
         loadSavedSheets();
     }
     
@@ -332,7 +238,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         
         if (selectedParticipants.length === 0) {
-            showNotification('Please select at least one participant', 'warning');
+            alert('Please select at least one participant');
             return;
         }
         
@@ -348,6 +254,7 @@ document.addEventListener('DOMContentLoaded', function() {
             date: dateTimeString,
             participants: selectedParticipants,
             expenses: {},
+            settlements: {},
             createdAt: new Date().toISOString()
         };
         
@@ -403,10 +310,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 const mealsSelect = document.createElement('select');
                 mealsSelect.dataset.participant = participant;
                 
-                [1, 2, 3].forEach(mealCount => {
+                const mealOptions = [
+                    { value: 1, text: '1 Meal' },
+                    { value: 2, text: '2 Meals' },
+                    { value: 3, text: 'All Meals' }
+                ];
+                
+                mealOptions.forEach(mealOption => {
                     const option = document.createElement('option');
-                    option.value = mealCount.toString();
-                    option.textContent = `${mealCount} Meal${mealCount > 1 ? 's' : ''}`;
+                    option.value = mealOption.value.toString();
+                    option.textContent = mealOption.text;
                     mealsSelect.appendChild(option);
                 });
                 
@@ -416,7 +329,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
                 mealsCell.appendChild(mealsSelect);
             } else {
-                mealsCell.textContent = currentSheetData.expenses[participant].meals;
+                const mealsValue = currentSheetData.expenses[participant].meals;
+                mealsCell.textContent = mealsValue === 3 ? 'All Meals' : mealsValue + ' Meal' + (mealsValue > 1 ? 's' : '');
             }
             
             // To Be Paid
@@ -523,10 +437,16 @@ document.addEventListener('DOMContentLoaded', function() {
             const settlementAmount = Math.min(creditor.amount, debtor.amount);
             
             if (settlementAmount > 0.01) {
+                const settlementKey = `${debtor.name}_to_${creditor.name}`;
+                
                 settlements.push({
                     from: debtor.name,
                     to: creditor.name,
-                    amount: settlementAmount.toFixed(2)
+                    amount: settlementAmount.toFixed(2),
+                    key: settlementKey,
+                    status: currentSheetData.settlements && currentSheetData.settlements[settlementKey] 
+                           ? currentSheetData.settlements[settlementKey].status 
+                           : 'not-paid'
                 });
                 
                 creditor.amount -= settlementAmount;
@@ -540,6 +460,21 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
         
+        // Store settlements in currentSheetData
+        currentSheetData.settlements = {};
+        settlements.forEach(settlement => {
+            currentSheetData.settlements[settlement.key] = {
+                from: settlement.from,
+                to: settlement.to,
+                amount: settlement.amount,
+                status: settlement.status
+            };
+        });
+        
+        renderSettlementList(settlements);
+    }
+    
+    function renderSettlementList(settlements) {
         settlementList.innerHTML = '';
         if (settlements.length === 0) {
             settlementList.innerHTML = '<div class="no-settlements">All balances are settled! 🎉</div>';
@@ -547,44 +482,74 @@ document.addEventListener('DOMContentLoaded', function() {
             settlements.forEach(settlement => {
                 const settlementItem = document.createElement('div');
                 settlementItem.className = 'settlement-item';
-                settlementItem.innerHTML = `
-                    <span><strong>${settlement.from}</strong></span>
-                    <span class="settlement-arrow">→</span>
-                    <span><strong>${settlement.to}</strong></span>
-                    <span class="settlement-amount">${settlement.amount} SAR</span>
-                `;
+                
+                if (isAdmin) {
+                    settlementItem.innerHTML = `
+                        <div class="settlement-details">
+                            <span class="settlement-from">${settlement.from}</span>
+                            <span class="settlement-arrow">→</span>
+                            <span class="settlement-to">${settlement.to}</span>
+                            <span class="settlement-amount">${settlement.amount} SAR</span>
+                            <select class="settlement-status" data-key="${settlement.key}">
+                                <option value="not-paid" ${settlement.status === 'not-paid' ? 'selected' : ''}>Not Paid</option>
+                                <option value="paid" ${settlement.status === 'paid' ? 'selected' : ''}>Paid</option>
+                            </select>
+                        </div>
+                    `;
+                    
+                    const statusSelect = settlementItem.querySelector('.settlement-status');
+                    statusSelect.addEventListener('change', function() {
+                        currentSheetData.settlements[this.dataset.key].status = this.value;
+                        saveSheet();
+                    });
+                } else {
+                    const statusClass = settlement.status === 'paid' ? 'status-paid' : 'status-not-paid';
+                    const statusText = settlement.status === 'paid' ? 'Paid' : 'Not Paid';
+                    
+                    settlementItem.innerHTML = `
+                        <div class="settlement-details">
+                            <span class="settlement-from">${settlement.from}</span>
+                            <span class="settlement-arrow">→</span>
+                            <span class="settlement-to">${settlement.to}</span>
+                            <span class="settlement-amount">${settlement.amount} SAR</span>
+                            <span class="settlement-status ${statusClass}">${statusText}</span>
+                        </div>
+                    `;
+                }
+                
                 settlementList.appendChild(settlementItem);
             });
         }
     }
     
-    async function saveAndCloseSheet() {
+    function saveAndCloseSheet() {
         if (!isAdmin) return;
-        await saveSheet();
+        saveSheet();
         closeSheet();
     }
     
-    async function saveSheet() {
-        if (!currentSheetData || !isAdmin) return;
-        
-        calculateShares();
-        
-        const existingIndex = savedSheets.findIndex(sheet => sheet.id === currentSheetData.id);
-        if (existingIndex !== -1) {
-            savedSheets[existingIndex] = currentSheetData;
-        } else {
-            savedSheets.push(currentSheetData);
-        }
-        
-        const success = await saveSheetsToCloud();
-        loadSavedSheets();
-        
-        if (success) {
-            showNotification('Sheet saved successfully to cloud!', 'success');
-        } else {
-            showNotification('Sheet saved locally (cloud sync failed)', 'warning');
-        }
+   function saveSheet() {
+    if (!currentSheetData || !isAdmin) return;
+    
+    calculateShares();
+    
+    const existingIndex = savedSheets.findIndex(sheet => sheet.id === currentSheetData.id);
+    if (existingIndex !== -1) {
+        savedSheets[existingIndex] = currentSheetData;
+    } else {
+        savedSheets.push(currentSheetData);
     }
+    
+    localStorage.setItem('hisaabKitaabSheets', JSON.stringify(savedSheets));
+    loadSavedSheets();
+    
+    // NEW: Auto-sync to cloud
+    if (window.firebaseSync && window.firebaseSync.isInitialized) {
+        window.firebaseSync.saveToCloud(savedSheets);
+    }
+    
+    alert('Sheet saved successfully!');
+}
     
     function closeSheet() {
         sheetSection.style.display = 'none';
@@ -603,20 +568,15 @@ document.addEventListener('DOMContentLoaded', function() {
         deleteModal.style.display = 'none';
     }
     
-    async function deleteCurrentSheet() {
+    function deleteCurrentSheet() {
         if (!currentSheetData || !isAdmin) return;
         
         savedSheets = savedSheets.filter(sheet => sheet.id !== currentSheetData.id);
-        const success = await saveSheetsToCloud();
+        localStorage.setItem('hisaabKitaabSheets', JSON.stringify(savedSheets));
         loadSavedSheets();
         closeSheet();
         hideDeleteConfirmation();
-        
-        if (success) {
-            showNotification('Sheet deleted successfully from cloud!', 'success');
-        } else {
-            showNotification('Sheet deleted locally (cloud sync failed)', 'warning');
-        }
+        alert('Sheet deleted successfully!');
     }
     
     // Participants Management Functions
@@ -625,7 +585,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const customName = inputElement.value.trim();
         if (!customName) {
-            showNotification('Please enter a participant name', 'warning');
+            alert('Please enter a participant name');
             return;
         }
         
@@ -634,7 +594,7 @@ document.addEventListener('DOMContentLoaded', function() {
         );
         
         if (existingParticipants.includes(customName)) {
-            showNotification('This participant already exists in the list', 'warning');
+            alert('This participant already exists in the list');
             inputElement.value = '';
             return;
         }
@@ -649,7 +609,7 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
         listElement.appendChild(participant);
         inputElement.value = '';
-        showNotification(`Participant "${customName}" added successfully!`, 'success');
+        alert(`Participant "${customName}" added successfully!`);
     }
     
     function addCustomParticipantToEdit(inputElement, listElement) {
@@ -657,7 +617,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const customName = inputElement.value.trim();
         if (!customName) {
-            showNotification('Please enter a participant name', 'warning');
+            alert('Please enter a participant name');
             return;
         }
         
@@ -666,7 +626,7 @@ document.addEventListener('DOMContentLoaded', function() {
         );
         
         if (existingParticipants.includes(customName)) {
-            showNotification('This participant already exists in the list', 'warning');
+            alert('This participant already exists in the list');
             inputElement.value = '';
             return;
         }
@@ -712,7 +672,7 @@ document.addEventListener('DOMContentLoaded', function() {
         );
         
         if (updatedParticipants.length === 0) {
-            showNotification('Please add at least one participant', 'warning');
+            alert('Please add at least one participant');
             return;
         }
         
@@ -737,7 +697,7 @@ document.addEventListener('DOMContentLoaded', function() {
         calculateShares();
         editParticipantsSection.style.display = 'none';
         sheetSection.style.display = 'block';
-        showNotification('Participants updated successfully!', 'success');
+        alert('Participants updated successfully!');
     }
     
     function cancelEditParticipants() {
@@ -756,7 +716,7 @@ document.addEventListener('DOMContentLoaded', function() {
         settlementList.innerHTML = '<div class="no-settlements">Calculate shares to see settlement suggestions</div>';
     }
     
-    function renderSheetsList() {
+    function loadSavedSheets() {
         if (savedSheets.length === 0) {
             noSheetsMessage.style.display = 'block';
             sheetsList.style.display = 'none';
@@ -782,8 +742,17 @@ document.addEventListener('DOMContentLoaded', function() {
             const sheetActions = document.createElement('div');
             sheetActions.className = 'sheet-item-actions';
             
-            // Only show delete button for admin
             if (isAdmin) {
+                const renameBtn = document.createElement('button');
+                renameBtn.className = 'rename-sheet-btn';
+                renameBtn.innerHTML = '✏️';
+                renameBtn.title = 'Rename Sheet';
+                renameBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    renameSheet(sheet.id);
+                });
+                sheetActions.appendChild(renameBtn);
+                
                 const deleteBtn = document.createElement('button');
                 deleteBtn.className = 'delete-sheet-btn';
                 deleteBtn.innerHTML = '🗑️';
@@ -808,28 +777,49 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    async function deleteSheet(sheetId) {
+    function renameSheet(sheetId) {
+        if (!isAdmin) return;
+        
+        const sheet = savedSheets.find(s => s.id === sheetId);
+        if (!sheet) {
+            alert('Sheet not found!');
+            return;
+        }
+        
+        const newName = prompt('Enter new name for the sheet:', sheet.name);
+        if (newName && newName.trim() !== '') {
+            sheet.name = newName.trim();
+            sheet.date = new Date().toLocaleString();
+            localStorage.setItem('hisaabKitaabSheets', JSON.stringify(savedSheets));
+            loadSavedSheets();
+            
+            if (currentSheetData && currentSheetData.id === sheetId) {
+                currentSheetData.name = newName.trim();
+                sheetName.textContent = newName.trim();
+            }
+            
+            alert('Sheet renamed successfully!');
+        }
+    }
+    
+    function deleteSheet(sheetId) {
         if (!isAdmin) return;
         
         savedSheets = savedSheets.filter(sheet => sheet.id !== sheetId);
-        const success = await saveSheetsToCloud();
+        localStorage.setItem('hisaabKitaabSheets', JSON.stringify(savedSheets));
         loadSavedSheets();
         
         if (currentSheetData && currentSheetData.id === sheetId) {
             closeSheet();
         }
         
-        if (success) {
-            showNotification('Sheet deleted successfully from cloud!', 'success');
-        } else {
-            showNotification('Sheet deleted locally (cloud sync failed)', 'warning');
-        }
+        alert('Sheet deleted successfully!');
     }
     
     function openSheet(sheetId) {
         const sheet = savedSheets.find(s => s.id === sheetId);
         if (!sheet) {
-            showNotification('Sheet not found!', 'warning');
+            alert('Sheet not found!');
             return;
         }
         
@@ -839,7 +829,6 @@ document.addEventListener('DOMContentLoaded', function() {
         
         renderExpenseTable();
         
-        // Auto-calculate and display shares when opening sheet
         let totalSpent = 0;
         let totalMeals = 0;
         let oneMealCount = 0, twoMealsCount = 0, threeMealsCount = 0;
@@ -857,7 +846,6 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const costPerMeal = totalMeals > 0 ? totalSpent / totalMeals : 0;
         
-        // Update Summary Display
         totalParticipantsElement.textContent = selectedParticipants.length;
         document.getElementById('totalSpentCell').textContent = totalSpent.toFixed(2) + ' SAR';
         totalSpentElement.textContent = totalSpent.toFixed(2) + ' SAR';
@@ -867,7 +855,6 @@ document.addEventListener('DOMContentLoaded', function() {
         twoMealsCountElement.textContent = twoMealsCount;
         threeMealsCountElement.textContent = threeMealsCount;
         
-        // Calculate and display To Be Paid amounts
         selectedParticipants.forEach(participant => {
             const spentAmount = currentSheetData.expenses[participant].spent;
             const mealsAttended = currentSheetData.expenses[participant].meals;
@@ -889,4 +876,43 @@ document.addEventListener('DOMContentLoaded', function() {
         editParticipantsSection.style.display = 'none';
         sheetSection.scrollIntoView({ behavior: 'smooth' });
     }
+    
+    // PDF Generation Handler
+    function handlePDFGeneration() {
+        if (!currentSheetData) {
+            alert('No sheet data available to share');
+            return;
+        }
+        
+        // Ensure calculations are done
+        if (isAdmin && (!currentSheetData.totalSpent || currentSheetData.totalSpent === 0)) {
+            calculateShares();
+        }
+        
+        // Use the PDF generator
+        if (window.generateExpensePDF) {
+            window.generateExpensePDF(currentSheetData, selectedParticipants, isAdmin);
+        } else {
+            alert('PDF generator not loaded. Please refresh the page.');
+        }
+    }
+    
+    // Loading functions for PDF
+    function showPDFLoading() {
+        const loadingOverlay = document.getElementById('pdfLoadingOverlay');
+        if (loadingOverlay) {
+            loadingOverlay.style.display = 'flex';
+        }
+    }
+    
+    function hidePDFLoading() {
+        const loadingOverlay = document.getElementById('pdfLoadingOverlay');
+        if (loadingOverlay) {
+            loadingOverlay.style.display = 'none';
+        }
+    }
+    
+    // Make functions available globally for PDF generator
+    window.showPDFLoading = showPDFLoading;
+    window.hidePDFLoading = hidePDFLoading;
 });

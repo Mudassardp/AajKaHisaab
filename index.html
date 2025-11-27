@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HisaabKitaab - Expense Splitter</title>
     <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -15,6 +16,13 @@
                 <span id="userTypeDisplay">Viewer Mode</span>
                 <button id="logoutBtn" class="btn btn-small" style="display: none;">Logout</button>
             </div>
+
+            <!-- Add this near your existing user-status div -->
+<div class="sync-section" style="display: flex; gap: 10px; align-items: center; margin-top: 10px;">
+    <button id="manualSyncBtn" class="btn btn-small btn-info">Sync to Cloud</button>
+    <small id="syncStatusText" style="color: #666;">Ready to sync</small>
+</div>
+
         </header>
         
         <div class="main-content">
@@ -112,7 +120,7 @@
                         <span>Total Spent:</span>
                         <span class="currency" id="totalSpent">0.00 SAR</span>
                     </div>
-                    <div class="summary-item">
+                    <div id="totalMealsSummary" class="summary-item">
                         <span>Total Meals:</span>
                         <span class="currency" id="totalMeals">0</span>
                     </div>
@@ -130,7 +138,7 @@
                             <span id="twoMealsCount">0</span>
                         </div>
                         <div class="summary-item">
-                            <span>3 Meals Participants:</span>
+                            <span>All Meals Participants:</span>
                             <span id="threeMealsCount">0</span>
                         </div>
                     </div>
@@ -147,6 +155,7 @@
                 <div class="action-buttons">
                     <button id="calculateBtn" class="btn btn-success" style="display: none;">Calculate Shares</button>
                     <button id="saveCloseBtn" class="btn btn-warning" style="display: none;">Save and Close</button>
+                    <button id="sharePdfBtn" class="btn btn-info">Share as PDF</button>
                     <button id="closeSheetBtn" class="btn">Close Sheet</button>
                 </div>
             </div>
@@ -187,10 +196,28 @@
         </div>
         
         <footer>
-            <p>HisaabKitaab © 2025</p>
+            <p>HisaabKitaab © 2025 - v1.2</p>
         </footer>
     </div>
 
-    <script src="js/script.js"></script>
+    <!-- PDF Loading Overlay -->
+    <div id="pdfLoadingOverlay" class="pdf-loading" style="display: none;">
+        <div class="pdf-loading-spinner"></div>
+        <div class="pdf-loading-text">Generating PDF...</div>
+    </div>
+
+    <!-- IMPORTANT: Load scripts in correct order -->
+
+   <!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
+
+<!-- Firebase Sync -->
+<script src="js/firebase-sync.js"></script>
+
+<!-- Your existing scripts -->
+<script src="js/pdf-generator.js"></script>
+<script src="js/script.js"></script>
 </body>
 </html>
