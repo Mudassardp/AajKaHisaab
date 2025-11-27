@@ -246,11 +246,11 @@ document.addEventListener('DOMContentLoaded', function() {
         const dateTimeString = now.toLocaleString();
         const sheetId = 'sheet_' + Date.now();
         
-        sheetName.textContent = `Kharcha-${dateTimeString}`;
+        sheetName.textContent = `Hisaab-${dateTimeString}`;
         
         currentSheetData = {
             id: sheetId,
-            name: `Kharcha-${dateTimeString}`,
+            name: `Hisaab-${dateTimeString}`,
             date: dateTimeString,
             participants: selectedParticipants,
             expenses: {},
