@@ -778,43 +778,63 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function renameSheet(sheetId) {
-        if (!isAdmin) return;
-        
-        const sheet = savedSheets.find(s => s.id === sheetId);
-        if (!sheet) {
-            alert('Sheet not found!');
-            return;
-        }
-        
-        const newName = prompt('Enter new name for the sheet:', sheet.name);
-        if (newName && newName.trim() !== '') {
-            sheet.name = newName.trim();
-            sheet.date = new Date().toLocaleString();
-            localStorage.setItem('hisaabKitaabSheets', JSON.stringify(savedSheets));
-            loadSavedSheets();
-            
-            if (currentSheetData && currentSheetData.id === sheetId) {
-                currentSheetData.name = newName.trim();
-                sheetName.textContent = newName.trim();
-            }
-            
-            alert('Sheet renamed successfully!');
-        }
+    if (!isAdmin) return;
+    
+    const sheet = savedSheets.find(s => s.id === sheetId);
+    if (!sheet) {
+        alert('Sheet not found!');
+        return;
     }
     
-    function deleteSheet(sheetId) {
-        if (!isAdmin) return;
+    const newName = prompt('Enter new name for the sheet:', sheet.name);
+    if (newName && newName.trim() !== '') {
+        const trimmedName = newName.trim();
         
-        savedSheets = savedSheets.filter(sheet => sheet.id !== sheetId);
+        // Update the sheet name
+        sheet.name = trimmedName;
+        sheet.date = new Date().toLocaleString();
+        sheet.lastUpdated = new Date().toISOString(); // Add this line
+        
+        // Save to localStorage
         localStorage.setItem('hisaabKitaabSheets', JSON.stringify(savedSheets));
-        loadSavedSheets();
         
-        if (currentSheetData && currentSheetData.id === sheetId) {
-            closeSheet();
+        // NEW: Force sync to Firebase
+        if (window.firebaseSync && window.firebaseSync.isInitialized) {
+            window.firebaseSync.saveToCloud(savedSheets);
         }
         
-        alert('Sheet deleted successfully!');
+        // Update UI
+        loadSavedSheets();
+        
+        // Update current sheet if it's open
+        if (currentSheetData && currentSheetData.id === sheetId) {
+            currentSheetData.name = trimmedName;
+            sheetName.textContent = trimmedName;
+        }
+        
+        alert('Sheet renamed successfully!');
     }
+}
+    
+  function deleteSheet(sheetId) {
+    if (!isAdmin) return;
+    
+    savedSheets = savedSheets.filter(sheet => sheet.id !== sheetId);
+    localStorage.setItem('hisaabKitaabSheets', JSON.stringify(savedSheets));
+    
+    // NEW: Sync to Firebase after deletion
+    if (window.firebaseSync && window.firebaseSync.isInitialized) {
+        window.firebaseSync.saveToCloud(savedSheets);
+    }
+    
+    loadSavedSheets();
+    
+    if (currentSheetData && currentSheetData.id === sheetId) {
+        closeSheet();
+    }
+    
+    alert('Sheet deleted successfully!');
+}
     
     function openSheet(sheetId) {
         const sheet = savedSheets.find(s => s.id === sheetId);
