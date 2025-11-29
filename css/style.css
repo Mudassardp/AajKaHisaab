@@ -27,43 +27,75 @@ header {
     margin-bottom: 30px;
     border-bottom: 1px solid #eaeaea;
     padding-bottom: 20px;
-    position: relative;
+}
+
+.header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.sync-btn {
+    margin-right: auto;
+}
+
+.mode-tabs {
+    display: flex;
+    background-color: #f8f9fa;
+    border-radius: 5px;
+    padding: 4px;
+    margin: 0 auto;
+}
+
+.mode-tab {
+    padding: 8px 16px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    border-radius: 3px;
+    font-weight: 600;
+    color: #7f8c8d;
+    transition: all 0.3s;
+}
+
+.mode-tab.active {
+    background-color: #3498db;
+    color: white;
+}
+
+.user-status {
+    margin-left: auto;
 }
 
 h1 {
     color: #2c3e50;
     font-size: 2.5rem;
-    margin-bottom: 10px;
+    margin-bottom: 5px;
 }
 
 .tagline {
     color: #7f8c8d;
     font-size: 1.1rem;
-}
-
-.user-status {
-    position: absolute;
-    top: 20px;
-    right: 20px;
-    background: #e8f4fc;
-    padding: 8px 15px;
-    border-radius: 20px;
-    border: 1px solid #3498db;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.user-status span {
-    font-weight: 600;
-    color: #2c3e50;
-    font-size: 0.9rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .main-content {
     display: flex;
     flex-direction: column;
     gap: 30px;
+}
+
+.mode-content {
+    display: none;
+}
+
+.mode-content.active {
+    display: block;
 }
 
 .login-section {
@@ -153,10 +185,14 @@ h1 {
 .section-title {
     color: #2c3e50;
     margin-bottom: 15px;
-    font-size: 1.5rem;
+    font-size: 1.3rem;
     border-bottom: 2px solid #3498db;
     padding-bottom: 8px;
     display: inline-block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
 }
 
 .sheet-header {
@@ -164,6 +200,8 @@ h1 {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 10px;
 }
 
 .sheet-name {
@@ -174,12 +212,17 @@ h1 {
     color: #2c3e50;
     border-left: 4px solid #3498db;
     flex-grow: 1;
+    font-size: 1.1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .sheet-actions {
     display: flex;
     gap: 10px;
     margin-left: 15px;
+    flex-wrap: wrap;
 }
 
 .participants-list {
@@ -328,6 +371,7 @@ select {
 .summary-box h3 {
     margin-bottom: 10px;
     color: #2c3e50;
+    font-size: 1.3rem;
 }
 
 .summary-item {
@@ -355,6 +399,10 @@ select {
     border-radius: 8px;
     margin-top: 20px;
     border-left: 4px solid #9b59b6;
+}
+
+.settlement-section h3 {
+    font-size: 1.3rem;
 }
 
 .settlement-list {
@@ -389,13 +437,14 @@ select {
     flex-wrap: nowrap;
 }
 
-.settlement-from, .settlement-to, .settlement-amount, .settlement-status {
-    flex: 1;
+.settlement-from, .settlement-to {
+    flex: 2;
     text-align: center;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     padding: 0 5px;
+    font-size: 0.9rem;
 }
 
 .settlement-arrow {
@@ -412,25 +461,71 @@ select {
     padding: 5px 10px;
     border-radius: 4px;
     border: 1px solid #3498db;
-    min-width: 80px;
+    min-width: 90px;
+    max-width: 120px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+/* Settlement Status Styles */
+.settlement-status {
+    font-weight: bold;
+    padding: 5px 10px;
+    border-radius: 4px;
+    border: 1px solid;
+    min-width: 90px;
+    max-width: 120px;
+    text-align: center;
+    flex-shrink: 0;
 }
 
 .status-paid {
     color: #27ae60;
-    font-weight: bold;
     background-color: #e8f6f3;
-    padding: 5px 10px;
-    border-radius: 4px;
-    border: 1px solid #2ecc71;
+    border-color: #2ecc71;
 }
 
 .status-not-paid {
     color: #e74c3c;
-    font-weight: bold;
     background-color: #fdedec;
+    border-color: #e74c3c;
+}
+
+/* Toggle Button for Admin */
+.settlement-toggle-btn {
+    font-weight: bold;
     padding: 5px 10px;
     border-radius: 4px;
-    border: 1px solid #e74c3c;
+    border: 1px solid;
+    min-width: 90px;
+    max-width: 120px;
+    text-align: center;
+    flex-shrink: 0;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 0.9rem;
+}
+
+.settlement-toggle-btn.paid {
+    color: #27ae60;
+    background-color: #e8f6f3;
+    border-color: #2ecc71;
+}
+
+.settlement-toggle-btn.paid:hover {
+    background-color: #d4edda;
+    transform: scale(1.05);
+}
+
+.settlement-toggle-btn.not-paid {
+    color: #e74c3c;
+    background-color: #fdedec;
+    border-color: #e74c3c;
+}
+
+.settlement-toggle-btn.not-paid:hover {
+    background-color: #f8d7da;
+    transform: scale(1.05);
 }
 
 .no-settlements {
@@ -464,7 +559,10 @@ select {
 
 .sheet-date {
     color: #7f8c8d;
-    font-size: 0.9rem;
+    font-size: 0.8rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .sheet-item-actions {
@@ -685,6 +783,28 @@ h1, h2, h3 {
 }
 
 @media (max-width: 768px) {
+    .header-top {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .sync-btn {
+        margin-right: 0;
+        margin-bottom: 10px;
+        align-self: flex-start;
+    }
+    
+    .mode-tabs {
+        order: 2;
+        margin: 10px 0;
+    }
+    
+    .user-status {
+        order: 3;
+        margin-left: 0;
+        align-self: flex-end;
+    }
+    
     table {
         font-size: 0.9rem;
     }
@@ -697,19 +817,22 @@ h1, h2, h3 {
         font-size: 0.85rem;
     }
     
-    .settlement-amount, .settlement-status {
+    .settlement-amount, .settlement-status, .settlement-toggle-btn {
         min-width: 70px;
         padding: 4px 8px;
         font-size: 0.85rem;
     }
     
-    .user-status {
-        position: static;
-        margin-top: 15px;
+    .sheet-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .sheet-actions {
+        margin-left: 0;
+        margin-top: 10px;
+        width: 100%;
         justify-content: center;
-        width: fit-content;
-        margin-left: auto;
-        margin-right: auto;
     }
 }
 
@@ -722,6 +845,10 @@ h1, h2, h3 {
         font-size: 2rem;
     }
     
+    .section-title {
+        font-size: 1.1rem;
+    }
+    
     .participants-list {
         grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
     }
@@ -732,16 +859,6 @@ h1, h2, h3 {
     
     .action-buttons {
         flex-direction: column;
-    }
-    
-    .sheet-header {
-        flex-direction: column;
-        gap: 10px;
-    }
-    
-    .sheet-actions {
-        margin-left: 0;
-        justify-content: center;
     }
     
     .add-participant-form {
@@ -760,10 +877,25 @@ h1, h2, h3 {
     
     .settlement-details {
         font-size: 0.8rem;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 8px;
     }
     
-    .settlement-amount, .settlement-status {
+    .settlement-from, .settlement-to, .settlement-arrow, .settlement-amount, .settlement-status, .settlement-toggle-btn {
+        flex: 0 0 auto;
+    }
+    
+    .settlement-arrow {
+        display: none;
+    }
+    
+    .settlement-amount, .settlement-status, .settlement-toggle-btn {
         min-width: 60px;
         font-size: 0.8rem;
+    }
+    
+    .sheet-name {
+        font-size: 1rem;
     }
 }

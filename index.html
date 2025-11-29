@@ -10,31 +10,63 @@
 <body>
     <div class="container">
         <header>
-            <h1>HisaabKitaab</h1>
-            <p class="tagline">Split expenses with friends and family easily</p>
-            <div id="userStatus" class="user-status">
-                <span id="userTypeDisplay">Viewer Mode</span>
-                <button id="logoutBtn" class="btn btn-small" style="display: none;">Logout</button>
+            <div class="header-top">
+                <button id="manualSyncBtn" class="btn btn-small btn-info sync-btn">Sync to Cloud</button>
+                <div class="mode-tabs">
+                    <button id="viewerTab" class="mode-tab active">Viewer Mode</button>
+                    <button id="adminTab" class="mode-tab">Admin Mode</button>
+                </div>
+                <div id="userStatus" class="user-status" style="display: none;">
+                    <button id="logoutBtn" class="btn btn-small">Logout</button>
+                </div>
             </div>
-
-            <!-- Add this near your existing user-status div -->
-<div class="sync-section" style="display: flex; gap: 10px; align-items: center; margin-top: 10px;">
-    <button id="manualSyncBtn" class="btn btn-small btn-info">Sync to Cloud</button>
-    <small id="syncStatusText" style="color: #666;">Ready to sync</small>
-</div>
-
+            
+            <h1>HisaabKitaab</h1>
+            <p class="tagline">Weekly Expense Split</p>
         </header>
         
         <div class="main-content">
-            <!-- Login Section for Normal Users -->
-            <div id="loginSection" class="login-section">
-                <h2>Welcome to HisaabKitaab</h2>
-                <p>You are currently in viewer mode. You can view existing expense sheets.</p>
-                <div class="action-buttons">
-                    <button id="loginAsAdminBtn" class="btn btn-info">Login as Admin</button>
+            <!-- Viewer Mode Content -->
+            <div id="viewerContent" class="mode-content active">
+                <!-- Existing Sheets Section -->
+                <div class="existing-sheets-section">
+                    <h2 class="section-title">Existing Expense Sheets</h2>
+                    <div id="sheetsListContainer">
+                        <div class="no-sheets" id="noSheetsMessage">No saved sheets found.</div>
+                        <ul id="sheetsList" class="sheets-list" style="display: none;"></ul>
+                    </div>
                 </div>
             </div>
+            
+            <!-- Admin Mode Content -->
+            <div id="adminContent" class="mode-content">
+                <!-- Login Section for Normal Users -->
+                <div id="loginSection" class="login-section">
+                    <h2>Admin Access Required</h2>
+                    <p>Login as admin to create and manage expense sheets.</p>
+                    <div class="action-buttons">
+                        <button id="loginAsAdminBtn" class="btn btn-info">Login as Admin</button>
+                    </div>
+                </div>
 
+                <!-- Admin Only Sections -->
+                <div id="adminSections" style="display: none;">
+                    <div class="create-section">
+                        <h2>Start a New Expense Sheet</h2>
+                        <button id="createBtn" class="btn">Create New Hisaab</button>
+                    </div>
+                    
+                    <!-- Existing Sheets Section -->
+                    <div class="existing-sheets-section">
+                        <h2 class="section-title">Existing Expense Sheets</h2>
+                        <div id="adminSheetsListContainer">
+                            <div class="no-sheets" id="adminNoSheetsMessage">No saved sheets found.</div>
+                            <ul id="adminSheetsList" class="sheets-list" style="display: none;"></ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
             <!-- Admin Login Modal -->
             <div id="adminLoginModal" class="modal">
                 <div class="modal-content">
@@ -47,35 +79,14 @@
                     </div>
                 </div>
             </div>
-            
-            <!-- Existing Sheets Section (Visible to all users) -->
-            <div class="existing-sheets-section">
-                <h2>Existing Expense Sheets</h2>
-                <p>Select a sheet to view expense details:</p>
-                <div id="sheetsListContainer">
-                    <div class="no-sheets" id="noSheetsMessage">No saved sheets found.</div>
-                    <ul id="sheetsList" class="sheets-list" style="display: none;"></ul>
-                </div>
-            </div>
-            
-            <!-- Admin Only Sections -->
-            <div id="adminSections" style="display: none;">
-                <div class="create-section">
-                    <h2>Start a New Expense Sheet</h2>
-                    <p>Click the button below to create a new expense tracking sheet</p>
-                    <button id="createBtn" class="btn">Create New Hisaab</button>
-                </div>
-            </div>
 
             <!-- Participants Section (Admin Only) -->
             <div id="participantsSection" class="participants-section">
                 <h2 class="section-title">Select Participants</h2>
-                <p>Select the participants for this expense sheet:</p>
                 <ul id="participantsList" class="participants-list"></ul>
                 
                 <div class="add-participant-section">
                     <h3>Add Custom Participant</h3>
-                    <p>Add someone who is not in the default list:</p>
                     <div class="add-participant-form">
                         <input type="text" id="customParticipantInput" placeholder="Enter participant name">
                         <button id="addCustomParticipantBtn" class="btn btn-small">Add Participant</button>
@@ -111,7 +122,7 @@
                 </table>
                 
                 <div class="summary-box">
-                    <h3>Expense Summary</h3>
+                    <h3 class="section-title">Expense Summary</h3>
                     <div class="summary-item">
                         <span>Total Participants:</span>
                         <span class="currency" id="totalParticipants">0</span>
@@ -146,7 +157,6 @@
                 
                 <div class="settlement-section">
                     <h3 class="section-title">Settlement Suggestions</h3>
-                    <p>To settle all balances, follow these payment suggestions:</p>
                     <div id="settlementList" class="settlement-list">
                         <div class="no-settlements">Calculate shares to see settlement suggestions</div>
                     </div>
@@ -163,7 +173,6 @@
             <!-- Edit Participants Section (Admin Only) -->
             <div id="editParticipantsSection" class="edit-participants-section">
                 <h2 class="section-title">Edit Participants</h2>
-                <p>Add or remove participants from this expense sheet:</p>
                 
                 <div class="add-participant-section">
                     <h3>Add New Participant</h3>
@@ -196,7 +205,7 @@
         </div>
         
         <footer>
-            <p>HisaabKitaab©2025(created by Mudassar)-v1.3</p>
+            <p>HisaabKitaab©2025(created by Mudassar)-v1.4</p>
         </footer>
     </div>
 

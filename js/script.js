@@ -1,8 +1,11 @@
 document.addEventListener('DOMContentLoaded', function() {
     // DOM Elements
     const userStatus = document.getElementById('userStatus');
-    const userTypeDisplay = document.getElementById('userTypeDisplay');
     const logoutBtn = document.getElementById('logoutBtn');
+    const viewerTab = document.getElementById('viewerTab');
+    const adminTab = document.getElementById('adminTab');
+    const viewerContent = document.getElementById('viewerContent');
+    const adminContent = document.getElementById('adminContent');
     const loginSection = document.getElementById('loginSection');
     const adminLoginModal = document.getElementById('adminLoginModal');
     const adminSections = document.getElementById('adminSections');
@@ -38,7 +41,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const threeMealsCountElement = document.getElementById('threeMealsCount');
     const settlementList = document.getElementById('settlementList');
     const sheetsList = document.getElementById('sheetsList');
+    const adminSheetsList = document.getElementById('adminSheetsList');
     const noSheetsMessage = document.getElementById('noSheetsMessage');
+    const adminNoSheetsMessage = document.getElementById('adminNoSheetsMessage');
     const deleteModal = document.getElementById('deleteModal');
     const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
     const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
@@ -54,6 +59,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let currentSheetData = null;
     let savedSheets = JSON.parse(localStorage.getItem('hisaabKitaabSheets')) || [];
     let isAdmin = false;
+    let currentMode = 'viewer'; // Track current mode
     const ADMIN_PASSWORD = "226622";
     
     // Define the 15 default participants with Mohsin at position 11
@@ -71,14 +77,18 @@ document.addEventListener('DOMContentLoaded', function() {
         setupEventListeners();
         checkAdminStatus();
         // NEW: Initialize Firebase sync
-    setTimeout(() => {
-        if (window.firebaseSync) {
-            window.firebaseSync.initialize();
-        }
-    }, 1000);
-}
+        setTimeout(() => {
+            if (window.firebaseSync) {
+                window.firebaseSync.initialize();
+            }
+        }, 1000);
+    }
     
     function setupEventListeners() {
+        // Mode Tabs
+        viewerTab.addEventListener('click', () => switchMode('viewer'));
+        adminTab.addEventListener('click', () => switchMode('admin'));
+
         // User Management
         loginAsAdminBtn.addEventListener('click', showAdminLoginModal);
         confirmAdminLoginBtn.addEventListener('click', handleAdminLogin);
@@ -87,10 +97,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Add this in setupEventListeners()
         document.getElementById('manualSyncBtn')?.addEventListener('click', () => {
-    if (window.firebaseSync) {
-        window.firebaseSync.manualSync();
-    }
-});
+            if (window.firebaseSync) {
+                window.firebaseSync.manualSync();
+            }
+        });
         
         // Sheet Management
         createBtn.addEventListener('click', showParticipantsSection);
@@ -119,14 +129,43 @@ document.addEventListener('DOMContentLoaded', function() {
         cancelEditBtn.addEventListener('click', cancelEditParticipants);
     }
     
+    // Mode Switching Functions
+    function switchMode(mode) {
+        currentMode = mode;
+        if (mode === 'viewer') {
+            viewerTab.classList.add('active');
+            adminTab.classList.remove('active');
+            viewerContent.classList.add('active');
+            adminContent.classList.remove('active');
+            updateUIForViewer();
+        } else if (mode === 'admin') {
+            viewerTab.classList.remove('active');
+            adminTab.classList.add('active');
+            viewerContent.classList.remove('active');
+            adminContent.classList.add('active');
+            if (isAdmin) {
+                updateUIForAdmin();
+            } else {
+                updateUIForAdminLogin();
+            }
+        }
+        
+        // Refresh settlement list to show correct status display
+        if (currentSheetData && currentSheetData.settlements) {
+            generateSettlementSuggestions();
+        }
+    }
+    
     // User Management Functions
     function checkAdminStatus() {
         const savedAdminStatus = localStorage.getItem('hisaabKitaabAdmin');
         if (savedAdminStatus === 'true') {
             isAdmin = true;
+            userStatus.style.display = 'flex';
             updateUIForAdmin();
         } else {
             isAdmin = false;
+            userStatus.style.display = 'none';
             updateUIForViewer();
         }
     }
@@ -146,6 +185,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (password === ADMIN_PASSWORD) {
             isAdmin = true;
             localStorage.setItem('hisaabKitaabAdmin', 'true');
+            userStatus.style.display = 'flex';
             updateUIForAdmin();
             hideAdminLoginModal();
             alert('Admin login successful!');
@@ -159,30 +199,25 @@ document.addEventListener('DOMContentLoaded', function() {
     function handleLogout() {
         isAdmin = false;
         localStorage.removeItem('hisaabKitaabAdmin');
-        updateUIForViewer();
+        userStatus.style.display = 'none';
+        updateUIForAdminLogin();
         closeSheet();
         alert('Logged out successfully.');
     }
     
     function updateUIForAdmin() {
-        userTypeDisplay.textContent = 'Admin Mode';
-        logoutBtn.style.display = 'inline-block';
         loginSection.style.display = 'none';
         adminSections.style.display = 'block';
         calculateBtn.style.display = 'inline-block';
         saveCloseBtn.style.display = 'inline-block';
         sharePdfBtn.style.display = 'inline-block';
         adminSheetActions.style.display = 'flex';
-        closeSheetBtn.style.display = 'none';
+        closeSheetBtn.style.display = 'inline-block';
         totalMealsSummary.style.display = 'flex';
         loadSavedSheets();
     }
     
     function updateUIForViewer() {
-        userTypeDisplay.textContent = 'Viewer Mode';
-        logoutBtn.style.display = 'none';
-        loginSection.style.display = 'block';
-        adminSections.style.display = 'none';
         calculateBtn.style.display = 'none';
         saveCloseBtn.style.display = 'none';
         sharePdfBtn.style.display = 'inline-block';
@@ -192,6 +227,19 @@ document.addEventListener('DOMContentLoaded', function() {
         closeSheetBtn.style.display = 'inline-block';
         totalMealsSummary.style.display = 'none';
         loadSavedSheets();
+    }
+    
+    function updateUIForAdminLogin() {
+        loginSection.style.display = 'block';
+        adminSections.style.display = 'none';
+        calculateBtn.style.display = 'none';
+        saveCloseBtn.style.display = 'none';
+        sharePdfBtn.style.display = 'none';
+        adminSheetActions.style.display = 'none';
+        participantsSection.style.display = 'none';
+        editParticipantsSection.style.display = 'none';
+        closeSheetBtn.style.display = 'none';
+        totalMealsSummary.style.display = 'none';
     }
     
     // Sheet Management Functions
@@ -243,15 +291,27 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         const now = new Date();
-        const dateTimeString = now.toLocaleString();
+        const dateString = now.toLocaleDateString();
+        
+        // Generate sheet name with duplicate detection
+        let sheetNameBase = `Hisaab-${dateString}`;
+        let sheetNameFinal = sheetNameBase;
+        let counter = 1;
+        
+        while (savedSheets.some(sheet => sheet.name === sheetNameFinal)) {
+            counter++;
+            sheetNameFinal = `${sheetNameBase}(${counter})`;
+        }
+        
         const sheetId = 'sheet_' + Date.now();
         
-        sheetName.textContent = `Hisaab-${dateTimeString}`;
+        sheetName.textContent = sheetNameFinal;
         
         currentSheetData = {
             id: sheetId,
-            name: `Hisaab-${dateTimeString}`,
-            date: dateTimeString,
+            name: sheetNameFinal,
+            date: dateString,
+            lastUpdated: formatDateTime(new Date()),
             participants: selectedParticipants,
             expenses: {},
             settlements: {},
@@ -287,7 +347,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const spentCell = document.createElement('td');
             spentCell.className = 'amount-cell';
             
-            if (isAdmin) {
+            if (isAdmin && currentMode === 'admin') {
                 const spentInput = document.createElement('input');
                 spentInput.type = 'number';
                 spentInput.min = '0';
@@ -306,7 +366,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const mealsCell = document.createElement('td');
             mealsCell.className = 'meals-cell';
             
-            if (isAdmin) {
+            if (isAdmin && currentMode === 'admin') {
                 const mealsSelect = document.createElement('select');
                 mealsSelect.dataset.participant = participant;
                 
@@ -407,7 +467,7 @@ document.addEventListener('DOMContentLoaded', function() {
         currentSheetData.totalSpent = totalSpent;
         currentSheetData.totalMeals = totalMeals;
         currentSheetData.costPerMeal = costPerMeal;
-        currentSheetData.lastUpdated = new Date().toISOString();
+        currentSheetData.lastUpdated = formatDateTime(new Date());
         
         generateSettlementSuggestions();
     }
@@ -483,26 +543,45 @@ document.addEventListener('DOMContentLoaded', function() {
                 const settlementItem = document.createElement('div');
                 settlementItem.className = 'settlement-item';
                 
-                if (isAdmin) {
+                // Check if we're in admin mode AND the user is logged in as admin
+                const showAdminControls = isAdmin && currentMode === 'admin';
+                
+                if (showAdminControls) {
+                    // Admin mode with toggle button
+                    const isPaid = settlement.status === 'paid';
+                    const statusClass = isPaid ? 'paid' : 'not-paid';
+                    const statusText = isPaid ? 'Paid' : 'Not Paid';
+                    
                     settlementItem.innerHTML = `
                         <div class="settlement-details">
                             <span class="settlement-from">${settlement.from}</span>
                             <span class="settlement-arrow">→</span>
                             <span class="settlement-to">${settlement.to}</span>
                             <span class="settlement-amount">${settlement.amount} SAR</span>
-                            <select class="settlement-status" data-key="${settlement.key}">
-                                <option value="not-paid" ${settlement.status === 'not-paid' ? 'selected' : ''}>Not Paid</option>
-                                <option value="paid" ${settlement.status === 'paid' ? 'selected' : ''}>Paid</option>
-                            </select>
+                            <button class="settlement-toggle-btn ${statusClass}" data-key="${settlement.key}">
+                                ${statusText}
+                            </button>
                         </div>
                     `;
                     
-                    const statusSelect = settlementItem.querySelector('.settlement-status');
-                    statusSelect.addEventListener('change', function() {
-                        currentSheetData.settlements[this.dataset.key].status = this.value;
+                    const toggleBtn = settlementItem.querySelector('.settlement-toggle-btn');
+                    toggleBtn.addEventListener('click', function() {
+                        const newStatus = currentSheetData.settlements[this.dataset.key].status === 'paid' ? 'not-paid' : 'paid';
+                        currentSheetData.settlements[this.dataset.key].status = newStatus;
+                        
+                        // Update button appearance
+                        if (newStatus === 'paid') {
+                            this.className = 'settlement-toggle-btn paid';
+                            this.textContent = 'Paid';
+                        } else {
+                            this.className = 'settlement-toggle-btn not-paid';
+                            this.textContent = 'Not Paid';
+                        }
+                        
                         saveSheet();
                     });
                 } else {
+                    // Viewer mode or admin in viewer tab - show static status
                     const statusClass = settlement.status === 'paid' ? 'status-paid' : 'status-not-paid';
                     const statusText = settlement.status === 'paid' ? 'Paid' : 'Not Paid';
                     
@@ -528,28 +607,28 @@ document.addEventListener('DOMContentLoaded', function() {
         closeSheet();
     }
     
-   function saveSheet() {
-    if (!currentSheetData || !isAdmin) return;
-    
-    calculateShares();
-    
-    const existingIndex = savedSheets.findIndex(sheet => sheet.id === currentSheetData.id);
-    if (existingIndex !== -1) {
-        savedSheets[existingIndex] = currentSheetData;
-    } else {
-        savedSheets.push(currentSheetData);
+    function saveSheet() {
+        if (!currentSheetData || !isAdmin) return;
+        
+        calculateShares();
+        
+        const existingIndex = savedSheets.findIndex(sheet => sheet.id === currentSheetData.id);
+        if (existingIndex !== -1) {
+            savedSheets[existingIndex] = currentSheetData;
+        } else {
+            savedSheets.push(currentSheetData);
+        }
+        
+        localStorage.setItem('hisaabKitaabSheets', JSON.stringify(savedSheets));
+        loadSavedSheets();
+        
+        // NEW: Auto-sync to cloud
+        if (window.firebaseSync && window.firebaseSync.isInitialized) {
+            window.firebaseSync.saveToCloud(savedSheets);
+        }
+        
+        alert('Sheet saved successfully!');
     }
-    
-    localStorage.setItem('hisaabKitaabSheets', JSON.stringify(savedSheets));
-    loadSavedSheets();
-    
-    // NEW: Auto-sync to cloud
-    if (window.firebaseSync && window.firebaseSync.isInitialized) {
-        window.firebaseSync.saveToCloud(savedSheets);
-    }
-    
-    alert('Sheet saved successfully!');
-}
     
     function closeSheet() {
         sheetSection.style.display = 'none';
@@ -717,9 +796,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function loadSavedSheets() {
+        // Update viewer sheets list
         if (savedSheets.length === 0) {
             noSheetsMessage.style.display = 'block';
             sheetsList.style.display = 'none';
+            if (adminNoSheetsMessage) adminNoSheetsMessage.style.display = 'block';
+            if (adminSheetsList) adminSheetsList.style.display = 'none';
             return;
         }
         
@@ -727,114 +809,135 @@ document.addEventListener('DOMContentLoaded', function() {
         sheetsList.style.display = 'block';
         sheetsList.innerHTML = '';
         
+        if (adminNoSheetsMessage) adminNoSheetsMessage.style.display = 'none';
+        if (adminSheetsList) {
+            adminSheetsList.style.display = 'block';
+            adminSheetsList.innerHTML = '';
+        }
+        
         savedSheets.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
         
         savedSheets.forEach(sheet => {
-            const sheetItem = document.createElement('li');
-            sheetItem.className = 'sheet-item';
-            
-            const sheetInfo = document.createElement('div');
-            sheetInfo.innerHTML = `
-                <strong>${sheet.name}</strong>
-                <div class="sheet-date">Created: ${sheet.date}</div>
-            `;
-            
-            const sheetActions = document.createElement('div');
-            sheetActions.className = 'sheet-item-actions';
-            
-            if (isAdmin) {
-                const renameBtn = document.createElement('button');
-                renameBtn.className = 'rename-sheet-btn';
-                renameBtn.innerHTML = '✏️';
-                renameBtn.title = 'Rename Sheet';
-                renameBtn.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    renameSheet(sheet.id);
-                });
-                sheetActions.appendChild(renameBtn);
-                
-                const deleteBtn = document.createElement('button');
-                deleteBtn.className = 'delete-sheet-btn';
-                deleteBtn.innerHTML = '🗑️';
-                deleteBtn.title = 'Delete Sheet';
-                deleteBtn.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    if (confirm(`Are you sure you want to delete "${sheet.name}"?`)) {
-                        deleteSheet(sheet.id);
-                    }
-                });
-                sheetActions.appendChild(deleteBtn);
-            }
-            
-            sheetItem.appendChild(sheetInfo);
-            sheetItem.appendChild(sheetActions);
-            
-            sheetItem.addEventListener('click', function() {
-                openSheet(sheet.id);
-            });
-            
+            // For viewer mode
+            const sheetItem = createSheetListItem(sheet, false);
             sheetsList.appendChild(sheetItem);
+            
+            // For admin mode
+            if (adminSheetsList) {
+                const adminSheetItem = createSheetListItem(sheet, true);
+                adminSheetsList.appendChild(adminSheetItem);
+            }
         });
     }
     
-    function renameSheet(sheetId) {
-    if (!isAdmin) return;
-    
-    const sheet = savedSheets.find(s => s.id === sheetId);
-    if (!sheet) {
-        alert('Sheet not found!');
-        return;
+    function createSheetListItem(sheet, isAdminList) {
+        const sheetItem = document.createElement('li');
+        sheetItem.className = 'sheet-item';
+        
+        const sheetInfo = document.createElement('div');
+        const displayDate = sheet.lastUpdated ? formatDateTime(new Date(sheet.lastUpdated)) : 
+                          sheet.date ? formatDateTime(new Date(sheet.date)) : 
+                          formatDateTime(new Date(sheet.createdAt));
+        
+        sheetInfo.innerHTML = `
+            <strong>${sheet.name}</strong>
+            <div class="sheet-date">Updated: ${displayDate}</div>
+        `;
+        
+        const sheetActions = document.createElement('div');
+        sheetActions.className = 'sheet-item-actions';
+        
+        if (isAdmin && isAdminList && currentMode === 'admin') {
+            const renameBtn = document.createElement('button');
+            renameBtn.className = 'rename-sheet-btn';
+            renameBtn.innerHTML = '✏️';
+            renameBtn.title = 'Rename Sheet';
+            renameBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                renameSheet(sheet.id);
+            });
+            sheetActions.appendChild(renameBtn);
+            
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'delete-sheet-btn';
+            deleteBtn.innerHTML = '🗑️';
+            deleteBtn.title = 'Delete Sheet';
+            deleteBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                if (confirm(`Are you sure you want to delete "${sheet.name}"?`)) {
+                    deleteSheet(sheet.id);
+                }
+            });
+            sheetActions.appendChild(deleteBtn);
+        }
+        
+        sheetItem.appendChild(sheetInfo);
+        sheetItem.appendChild(sheetActions);
+        
+        sheetItem.addEventListener('click', function() {
+            openSheet(sheet.id);
+        });
+        
+        return sheetItem;
     }
     
-    const newName = prompt('Enter new name for the sheet:', sheet.name);
-    if (newName && newName.trim() !== '') {
-        const trimmedName = newName.trim();
+    function renameSheet(sheetId) {
+        if (!isAdmin) return;
         
-        // Update the sheet name
-        sheet.name = trimmedName;
-        sheet.date = new Date().toLocaleString();
-        sheet.lastUpdated = new Date().toISOString(); // Add this line
+        const sheet = savedSheets.find(s => s.id === sheetId);
+        if (!sheet) {
+            alert('Sheet not found!');
+            return;
+        }
         
-        // Save to localStorage
+        const newName = prompt('Enter new name for the sheet:', sheet.name);
+        if (newName && newName.trim() !== '') {
+            const trimmedName = newName.trim();
+            
+            // Update the sheet name
+            sheet.name = trimmedName;
+            sheet.lastUpdated = formatDateTime(new Date());
+            
+            // Save to localStorage
+            localStorage.setItem('hisaabKitaabSheets', JSON.stringify(savedSheets));
+            
+            // NEW: Force sync to Firebase
+            if (window.firebaseSync && window.firebaseSync.isInitialized) {
+                window.firebaseSync.saveToCloud(savedSheets);
+            }
+            
+            // Update UI
+            loadSavedSheets();
+            
+            // Update current sheet if it's open
+            if (currentSheetData && currentSheetData.id === sheetId) {
+                currentSheetData.name = trimmedName;
+                sheetName.textContent = trimmedName;
+            }
+            
+            alert('Sheet renamed successfully!');
+        }
+    }
+    
+    function deleteSheet(sheetId) {
+        if (!isAdmin) return;
+        
+        savedSheets = savedSheets.filter(sheet => sheet.id !== sheetId);
         localStorage.setItem('hisaabKitaabSheets', JSON.stringify(savedSheets));
         
-        // NEW: Force sync to Firebase
+        // NEW: Sync to Firebase after deletion
         if (window.firebaseSync && window.firebaseSync.isInitialized) {
             window.firebaseSync.saveToCloud(savedSheets);
         }
         
-        // Update UI
         loadSavedSheets();
         
-        // Update current sheet if it's open
         if (currentSheetData && currentSheetData.id === sheetId) {
-            currentSheetData.name = trimmedName;
-            sheetName.textContent = trimmedName;
+            closeSheet();
         }
         
-        alert('Sheet renamed successfully!');
+        alert('Sheet deleted successfully!');
     }
-}
-    
-  function deleteSheet(sheetId) {
-    if (!isAdmin) return;
-    
-    savedSheets = savedSheets.filter(sheet => sheet.id !== sheetId);
-    localStorage.setItem('hisaabKitaabSheets', JSON.stringify(savedSheets));
-    
-    // NEW: Sync to Firebase after deletion
-    if (window.firebaseSync && window.firebaseSync.isInitialized) {
-        window.firebaseSync.saveToCloud(savedSheets);
-    }
-    
-    loadSavedSheets();
-    
-    if (currentSheetData && currentSheetData.id === sheetId) {
-        closeSheet();
-    }
-    
-    alert('Sheet deleted successfully!');
-}
     
     function openSheet(sheetId) {
         const sheet = savedSheets.find(s => s.id === sheetId);
@@ -897,6 +1000,19 @@ document.addEventListener('DOMContentLoaded', function() {
         sheetSection.scrollIntoView({ behavior: 'smooth' });
     }
     
+    // Utility function to format date and time
+    function formatDateTime(date) {
+        return date.toLocaleString('en-US', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: true
+        });
+    }
+    
     // PDF Generation Handler
     function handlePDFGeneration() {
         if (!currentSheetData) {
@@ -911,7 +1027,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Use the PDF generator
         if (window.generateExpensePDF) {
-            window.generateExpensePDF(currentSheetData, selectedParticipants, isAdmin);
+            window.generateExpensePDF(currentSheetData, selectedParticipants, isAdmin && currentMode === 'admin');
         } else {
             alert('PDF generator not loaded. Please refresh the page.');
         }
