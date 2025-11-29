@@ -258,6 +258,7 @@ h1 {
     gap: 10px;
     justify-content: center;
     margin-top: 20px;
+    flex-wrap: wrap;
 }
 
 table {
@@ -363,14 +364,16 @@ select {
 
 .settlement-item {
     background-color: white;
-    padding: 15px;
-    margin-bottom: 10px;
+    padding: 12px 15px;
+    margin-bottom: 8px;
     border-radius: 8px;
     border: 1px solid #e9ecef;
     display: flex;
     justify-content: space-between;
     align-items: center;
     transition: transform 0.2s, box-shadow 0.2s;
+    flex-wrap: wrap;
+    gap: 5px;
 }
 
 .settlement-item:hover {
@@ -378,10 +381,28 @@ select {
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
+.settlement-details {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    flex-wrap: nowrap;
+}
+
+.settlement-from, .settlement-to, .settlement-amount, .settlement-status {
+    flex: 1;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 0 5px;
+}
+
 .settlement-arrow {
     color: #7f8c8d;
     font-weight: bold;
-    margin: 0 10px;
+    margin: 0 5px;
+    flex-shrink: 0;
 }
 
 .settlement-amount {
@@ -391,6 +412,25 @@ select {
     padding: 5px 10px;
     border-radius: 4px;
     border: 1px solid #3498db;
+    min-width: 80px;
+}
+
+.status-paid {
+    color: #27ae60;
+    font-weight: bold;
+    background-color: #e8f6f3;
+    padding: 5px 10px;
+    border-radius: 4px;
+    border: 1px solid #2ecc71;
+}
+
+.status-not-paid {
+    color: #e74c3c;
+    font-weight: bold;
+    background-color: #fdedec;
+    padding: 5px 10px;
+    border-radius: 4px;
+    border: 1px solid #e74c3c;
 }
 
 .no-settlements {
@@ -432,10 +472,9 @@ select {
     gap: 8px;
 }
 
-.delete-sheet-btn {
+.delete-sheet-btn, .rename-sheet-btn {
     background: none;
     border: none;
-    color: #e74c3c;
     cursor: pointer;
     font-size: 1.2rem;
     padding: 5px;
@@ -443,8 +482,20 @@ select {
     transition: background-color 0.2s;
 }
 
+.delete-sheet-btn {
+    color: #e74c3c;
+}
+
 .delete-sheet-btn:hover {
     background-color: #ffeaea;
+}
+
+.rename-sheet-btn {
+    color: #3498db;
+}
+
+.rename-sheet-btn:hover {
+    background-color: #e8f4fc;
 }
 
 .no-sheets {
@@ -550,6 +601,89 @@ footer {
     font-size: 0.9rem;
 }
 
+/* PDF Loading Styles */
+.pdf-loading {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(255, 255, 255, 0.9);
+    z-index: 2000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+}
+
+.pdf-loading-spinner {
+    width: 50px;
+    height: 50px;
+    border: 5px solid #f3f3f3;
+    border-top: 5px solid #3498db;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 15px;
+}
+
+.pdf-loading-text {
+    color: #2c3e50;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* PDF Page Break Controls */
+.pdf-section {
+    margin-bottom: 25px;
+    page-break-inside: avoid;
+}
+
+.pdf-settlement-section {
+    margin-bottom: 25px;
+    page-break-before: always;
+    page-break-inside: avoid;
+}
+
+.pdf-shares-table {
+    page-break-inside: avoid;
+}
+
+/* Ensure no content gets cut between pages */
+.pdf-container * {
+    page-break-inside: avoid;
+    page-break-after: auto;
+}
+
+/* Prevent tables from breaking across pages */
+table {
+    page-break-inside: avoid;
+}
+
+/* Ensure headers stay with their content */
+h1, h2, h3 {
+    page-break-after: avoid;
+}
+
+/* Better spacing for PDF */
+@media print {
+    .pdf-container {
+        padding: 15px;
+    }
+    
+    .pdf-section {
+        margin-bottom: 20px;
+    }
+    
+    .pdf-settlement-section {
+        margin-top: 30px;
+    }
+}
+
 @media (max-width: 768px) {
     table {
         font-size: 0.9rem;
@@ -559,20 +693,23 @@ footer {
         padding: 8px 10px;
     }
     
-    .settlement-item {
-        flex-direction: column;
-        gap: 10px;
-        text-align: center;
+    .settlement-details {
+        font-size: 0.85rem;
     }
     
-    .settlement-arrow {
-        margin: 5px 0;
+    .settlement-amount, .settlement-status {
+        min-width: 70px;
+        padding: 4px 8px;
+        font-size: 0.85rem;
     }
     
     .user-status {
         position: static;
         margin-top: 15px;
         justify-content: center;
+        width: fit-content;
+        margin-left: auto;
+        margin-right: auto;
     }
 }
 
@@ -620,210 +757,13 @@ footer {
         display: block;
         overflow-x: auto;
     }
-
-    /* Add these new styles to your existing CSS file */
-
-.sync-status {
-    font-size: 0.8rem;
-    padding: 2px 8px;
-    border-radius: 10px;
-    background: #e8f4fc;
-    border: 1px solid #3498db;
-}
-
-.sync-status.syncing {
-    background: #fff3cd;
-    border-color: #ffc107;
-    color: #856404;
-}
-
-.sync-status.success {
-    background: #d4edda;
-    border-color: #28a745;
-    color: #155724;
-}
-
-.sync-status.error {
-    background: #f8d7da;
-    border-color: #dc3545;
-    color: #721c24;
-}
-
-.form-group {
-    margin-bottom: 15px;
-    text-align: left;
-}
-
-.form-group label {
-    display: block;
-    margin-bottom: 5px;
-    font-weight: 600;
-    color: #2c3e50;
-}
-
-.loading {
-    opacity: 0.7;
-    pointer-events: none;
-}
-
-.cloud-storage-badge {
-    background: #28a745;
-    color: white;
-    padding: 2px 8px;
-    border-radius: 10px;
-    font-size: 0.8rem;
-    margin-left: 10px;
-}
-
-.local-storage-badge {
-    background: #6c757d;
-    color: white;
-    padding: 2px 8px;
-    border-radius: 10px;
-    font-size: 0.8rem;
-    margin-left: 10px;
-}
-
-/* Add these new styles to your existing CSS file */
-
-.sync-status {
-    font-size: 0.8rem;
-    padding: 2px 8px;
-    border-radius: 10px;
-    background: #e8f4fc;
-    border: 1px solid #3498db;
-}
-
-.sync-status.syncing {
-    background: #fff3cd;
-    border-color: #ffc107;
-    color: #856404;
-}
-
-.sync-status.success {
-    background: #d4edda;
-    border-color: #28a745;
-    color: #155724;
-}
-
-.sync-status.error {
-    background: #f8d7da;
-    border-color: #dc3545;
-    color: #721c24;
-}
-
-.form-group {
-    margin-bottom: 15px;
-    text-align: left;
-}
-
-.form-group label {
-    display: block;
-    margin-bottom: 5px;
-    font-weight: 600;
-    color: #2c3e50;
-}
-
-.loading {
-    opacity: 0.7;
-    pointer-events: none;
-}
-
-.cloud-storage-badge {
-    background: #28a745;
-    color: white;
-    padding: 2px 8px;
-    border-radius: 10px;
-    font-size: 0.8rem;
-    margin-left: 10px;
-}
-
-.local-storage-badge {
-    background: #6c757d;
-    color: white;
-    padding: 2px 8px;
-    border-radius: 10px;
-    font-size: 0.8rem;
-    margin-left: 10px;
-}
-
-/* Sync Status Styles */
-.sync-status {
-    font-size: 0.8rem;
-    padding: 2px 8px;
-    border-radius: 10px;
-    background: #e8f4fc;
-    border: 1px solid #3498db;
-    color: #2c3e50;
-}
-
-.sync-status.syncing {
-    background: #fff3cd;
-    border-color: #ffc107;
-    color: #856404;
-}
-
-.sync-status.success {
-    background: #d4edda;
-    border-color: #28a745;
-    color: #155724;
-}
-
-.sync-status.error {
-    background: #f8d7da;
-    border-color: #dc3545;
-    color: #721c24;
-}
-
-/* Storage Badges */
-.cloud-storage-badge {
-    background: #28a745;
-    color: white;
-    padding: 2px 8px;
-    border-radius: 10px;
-    font-size: 0.8rem;
-    margin-left: 10px;
-}
-
-.local-storage-badge {
-    background: #6c757d;
-    color: white;
-    padding: 2px 8px;
-    border-radius: 10px;
-    font-size: 0.8rem;
-    margin-left: 10px;
-}
-
-/* Form Styles */
-.form-group {
-    margin-bottom: 15px;
-    text-align: left;
-}
-
-.form-group label {
-    display: block;
-    margin-bottom: 5px;
-    font-weight: 600;
-    color: #2c3e50;
-}
-
-.loading {
-    opacity: 0.7;
-    pointer-events: none;
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
-    .user-status {
-        position: static;
-        margin-top: 15px;
-        justify-content: center;
+    
+    .settlement-details {
+        font-size: 0.8rem;
     }
     
-    .sync-status {
-        font-size: 0.7rem;
+    .settlement-amount, .settlement-status {
+        min-width: 60px;
+        font-size: 0.8rem;
     }
-}
-
-
 }

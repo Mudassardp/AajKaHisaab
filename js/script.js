@@ -2,18 +2,14 @@ document.addEventListener('DOMContentLoaded', function() {
     // DOM Elements
     const userStatus = document.getElementById('userStatus');
     const userTypeDisplay = document.getElementById('userTypeDisplay');
-    const syncStatus = document.getElementById('syncStatus');
     const logoutBtn = document.getElementById('logoutBtn');
     const loginSection = document.getElementById('loginSection');
     const adminLoginModal = document.getElementById('adminLoginModal');
-    const githubConfigModal = document.getElementById('githubConfigModal');
     const adminSections = document.getElementById('adminSections');
     const adminPasswordInput = document.getElementById('adminPasswordInput');
     const confirmAdminLoginBtn = document.getElementById('confirmAdminLoginBtn');
     const cancelAdminLoginBtn = document.getElementById('cancelAdminLoginBtn');
     const loginAsAdminBtn = document.getElementById('loginAsAdminBtn');
-    const refreshDataBtn = document.getElementById('refreshDataBtn');
-    const storageTypeElement = document.getElementById('storageType');
     
     const createBtn = document.getElementById('createBtn');
     const participantsSection = document.getElementById('participantsSection');
@@ -25,6 +21,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const tableBody = document.getElementById('tableBody');
     const calculateBtn = document.getElementById('calculateBtn');
     const saveCloseBtn = document.getElementById('saveCloseBtn');
+    const sharePdfBtn = document.getElementById('sharePdfBtn');
     const closeSheetBtn = document.getElementById('closeSheetBtn');
     const deleteSheetBtn = document.getElementById('deleteSheetBtn');
     const editParticipantsBtn = document.getElementById('editParticipantsBtn');
@@ -50,24 +47,17 @@ document.addEventListener('DOMContentLoaded', function() {
     const editCustomParticipantInput = document.getElementById('editCustomParticipantInput');
     const editAddCustomParticipantBtn = document.getElementById('editAddCustomParticipantBtn');
     const editParticipantsList = document.getElementById('editParticipantsList');
+    const totalMealsSummary = document.getElementById('totalMealsSummary');
     
     // Application State
     let selectedParticipants = [];
     let currentSheetData = null;
-    let savedSheets = [];
+    let savedSheets = JSON.parse(localStorage.getItem('hisaabKitaabSheets')) || [];
     let isAdmin = false;
-    
-    // GitHub Configuration with your credentials
-    const GITHUB_CONFIG = {
-        username: 'mudassardp',
-        repository: 'hisaabkitaab-data',
-        branch: 'main',
-        filePath: 'data/sheets.json',
-        token: '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'
-    };
-    
     const ADMIN_PASSWORD = "226622";
-    const DEFAULT_PARTICIPANTS = [
+    
+    // Define the 15 default participants with Mohsin at position 11
+    const defaultParticipants = [
         "Rizwan", "Aarif", "Abdul Razzaq", "Haris", "Mauzam", 
         "Masif", "Mudassar", "Shahid", "Mansoor Kotawdekar", 
         "Mansoor Wasta", "Mohsin", "Ubedulla", "Abdul Alim", "Sabir", "Aftab"
@@ -77,11 +67,16 @@ document.addEventListener('DOMContentLoaded', function() {
     initApp();
     
     function initApp() {
+        loadSavedSheets();
         setupEventListeners();
         checkAdminStatus();
-        loadData();
-        hideGithubConfigModal();
-    }
+        // NEW: Initialize Firebase sync
+    setTimeout(() => {
+        if (window.firebaseSync) {
+            window.firebaseSync.initialize();
+        }
+    }, 1000);
+}
     
     function setupEventListeners() {
         // User Management
@@ -89,15 +84,20 @@ document.addEventListener('DOMContentLoaded', function() {
         confirmAdminLoginBtn.addEventListener('click', handleAdminLogin);
         cancelAdminLoginBtn.addEventListener('click', hideAdminLoginModal);
         logoutBtn.addEventListener('click', handleLogout);
-        
-        // Data Management
-        refreshDataBtn.addEventListener('click', loadData);
+
+        // Add this in setupEventListeners()
+        document.getElementById('manualSyncBtn')?.addEventListener('click', () => {
+    if (window.firebaseSync) {
+        window.firebaseSync.manualSync();
+    }
+});
         
         // Sheet Management
         createBtn.addEventListener('click', showParticipantsSection);
         createSheetBtn.addEventListener('click', createNewSheet);
         calculateBtn.addEventListener('click', calculateShares);
         saveCloseBtn.addEventListener('click', saveAndCloseSheet);
+        sharePdfBtn.addEventListener('click', handlePDFGeneration);
         closeSheetBtn.addEventListener('click', closeSheet);
         deleteSheetBtn.addEventListener('click', showDeleteConfirmation);
         confirmDeleteBtn.addEventListener('click', deleteCurrentSheet);
@@ -117,196 +117,6 @@ document.addEventListener('DOMContentLoaded', function() {
         editParticipantsBtn.addEventListener('click', openEditParticipants);
         updateParticipantsBtn.addEventListener('click', updateParticipants);
         cancelEditBtn.addEventListener('click', cancelEditParticipants);
-    }
-    
-    // GitHub Cloud Storage Functions
-    function hideGithubConfigModal() {
-        if (githubConfigModal) {
-            githubConfigModal.style.display = 'none';
-        }
-    }
-    
-    async function loadData() {
-        setSyncStatus('syncing', 'Loading...');
-        
-        try {
-            const data = await loadDataFromGitHub();
-            if (data && data.sheets) {
-                savedSheets = data.sheets;
-                setSyncStatus('success', 'Synced with cloud');
-                updateStorageUI('GitHub Cloud');
-            } else {
-                loadFromLocalStorage();
-                setSyncStatus('success', 'Local data loaded');
-                updateStorageUI('Local Storage');
-            }
-        } catch (error) {
-            console.error('Load data error:', error);
-            loadFromLocalStorage();
-            setSyncStatus('error', 'Cloud load failed - using local');
-            updateStorageUI('Local Storage');
-        }
-        
-        loadSavedSheets();
-    }
-    
-    async function loadDataFromGitHub() {
-        try {
-            const rawUrl = `https://raw.githubusercontent.com/${GITHUB_CONFIG.username}/${GITHUB_CONFIG.repository}/${GITHUB_CONFIG.branch}/${GITHUB_CONFIG.filePath}?t=${Date.now()}`;
-            
-            const response = await fetch(rawUrl);
-            
-            if (response.ok) {
-                const text = await response.text();
-                
-                let data;
-                try {
-                    data = JSON.parse(text);
-                } catch (parseError) {
-                    console.error('JSON parse error:', parseError);
-                    return null;
-                }
-
-                const hasSheets = data.sheets && data.sheets.length > 0;
-
-                if (hasSheets) {
-                    return data;
-                } else {
-                    loadFromLocalStorage();
-                    
-                    if (savedSheets.length > 0 && isAdmin) {
-                        await saveDataToGitHub(savedSheets);
-                        return { sheets: savedSheets };
-                    } else {
-                        return { sheets: [] };
-                    }
-                }
-                
-            } else if (response.status === 404) {
-                loadFromLocalStorage();
-                return { sheets: savedSheets };
-            } else {
-                throw new Error(`GitHub response: ${response.status}`);
-            }
-        } catch (error) {
-            console.error('Failed to load from GitHub:', error);
-            loadFromLocalStorage();
-            return { sheets: savedSheets };
-        }
-    }
-    
-    async function saveDataToGitHub(data) {
-        if (!isAdmin) {
-            return false;
-        }
-        
-        setSyncStatus('syncing', 'Saving to cloud...');
-        
-        try {
-            const apiUrl = `https://api.github.com/repos/${GITHUB_CONFIG.username}/${GITHUB_CONFIG.repository}/contents/${GITHUB_CONFIG.filePath}`;
-
-            let sha = null;
-            try {
-                const getResponse = await fetch(apiUrl, {
-                    headers: {
-                        'Authorization': `token ${GITHUB_CONFIG.token}`,
-                        'Accept': 'application/vnd.github.v3+json',
-                        'User-Agent': 'HisaabKitaab-App'
-                    }
-                });
-
-                if (getResponse.ok) {
-                    const fileInfo = await getResponse.json();
-                    sha = fileInfo.sha;
-                } else if (getResponse.status !== 404) {
-                    const errorText = await getResponse.text();
-                    throw new Error(`GitHub API error (GET): ${getResponse.status}`);
-                }
-            } catch (getError) {
-                console.error('Error getting file info:', getError);
-                throw getError;
-            }
-
-            const githubData = {
-                sheets: data,
-                lastUpdated: new Date().toISOString(),
-                app: 'HisaabKitaab',
-                version: '1.0'
-            };
-
-            const contentString = JSON.stringify(githubData, null, 2);
-            const contentBase64 = btoa(unescape(encodeURIComponent(contentString)));
-            
-            const requestBody = {
-                message: `HisaabKitaab update: ${new Date().toLocaleString()}`,
-                content: contentBase64,
-                branch: GITHUB_CONFIG.branch
-            };
-
-            if (sha) {
-                requestBody.sha = sha;
-            }
-
-            const updateResponse = await fetch(apiUrl, {
-                method: 'PUT',
-                headers: {
-                    'Authorization': `token ${GITHUB_CONFIG.token}`,
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/vnd.github.v3+json',
-                    'User-Agent': 'HisaabKitaab-App'
-                },
-                body: JSON.stringify(requestBody)
-            });
-
-            if (updateResponse.ok) {
-                setSyncStatus('success', 'Saved to cloud');
-                localStorage.setItem('hisaabKitaabSheets', JSON.stringify(data));
-                return true;
-            } else {
-                const errorText = await updateResponse.text();
-                console.error('GitHub API error:', errorText);
-                setSyncStatus('error', 'Cloud save failed');
-                localStorage.setItem('hisaabKitaabSheets', JSON.stringify(data));
-                return false;
-            }
-        } catch (error) {
-            console.error('GitHub save error:', error);
-            setSyncStatus('error', 'Cloud save failed');
-            localStorage.setItem('hisaabKitaabSheets', JSON.stringify(data));
-            return false;
-        }
-    }
-    
-    function loadFromLocalStorage() {
-        const localData = localStorage.getItem('hisaabKitaabSheets');
-        if (localData) {
-            try {
-                savedSheets = JSON.parse(localData);
-            } catch (e) {
-                console.error('Error parsing local storage data:', e);
-                savedSheets = [];
-            }
-        } else {
-            savedSheets = [];
-        }
-    }
-    
-    function setSyncStatus(type, message) {
-        if (syncStatus) {
-            syncStatus.textContent = message;
-            syncStatus.className = `sync-status ${type}`;
-        }
-    }
-    
-    function updateStorageUI(type) {
-        if (storageTypeElement) {
-            storageTypeElement.textContent = type;
-            if (type === 'GitHub Cloud') {
-                storageTypeElement.className = 'cloud-storage-badge';
-            } else {
-                storageTypeElement.className = 'local-storage-badge';
-            }
-        }
     }
     
     // User Management Functions
@@ -356,27 +166,31 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function updateUIForAdmin() {
         userTypeDisplay.textContent = 'Admin Mode';
-        if (logoutBtn) logoutBtn.style.display = 'inline-block';
-        if (loginSection) loginSection.style.display = 'none';
-        if (adminSections) adminSections.style.display = 'block';
-        if (calculateBtn) calculateBtn.style.display = 'inline-block';
-        if (saveCloseBtn) saveCloseBtn.style.display = 'inline-block';
-        if (adminSheetActions) adminSheetActions.style.display = 'flex';
-        if (closeSheetBtn) closeSheetBtn.style.display = 'none';
+        logoutBtn.style.display = 'inline-block';
+        loginSection.style.display = 'none';
+        adminSections.style.display = 'block';
+        calculateBtn.style.display = 'inline-block';
+        saveCloseBtn.style.display = 'inline-block';
+        sharePdfBtn.style.display = 'inline-block';
+        adminSheetActions.style.display = 'flex';
+        closeSheetBtn.style.display = 'none';
+        totalMealsSummary.style.display = 'flex';
         loadSavedSheets();
     }
     
     function updateUIForViewer() {
         userTypeDisplay.textContent = 'Viewer Mode';
-        if (logoutBtn) logoutBtn.style.display = 'none';
-        if (loginSection) loginSection.style.display = 'block';
-        if (adminSections) adminSections.style.display = 'none';
-        if (calculateBtn) calculateBtn.style.display = 'none';
-        if (saveCloseBtn) saveCloseBtn.style.display = 'none';
-        if (adminSheetActions) adminSheetActions.style.display = 'none';
-        if (participantsSection) participantsSection.style.display = 'none';
-        if (editParticipantsSection) editParticipantsSection.style.display = 'none';
-        if (closeSheetBtn) closeSheetBtn.style.display = 'inline-block';
+        logoutBtn.style.display = 'none';
+        loginSection.style.display = 'block';
+        adminSections.style.display = 'none';
+        calculateBtn.style.display = 'none';
+        saveCloseBtn.style.display = 'none';
+        sharePdfBtn.style.display = 'inline-block';
+        adminSheetActions.style.display = 'none';
+        participantsSection.style.display = 'none';
+        editParticipantsSection.style.display = 'none';
+        closeSheetBtn.style.display = 'inline-block';
+        totalMealsSummary.style.display = 'none';
         loadSavedSheets();
     }
     
@@ -385,7 +199,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!isAdmin) return;
         
         participantsList.innerHTML = '';
-        DEFAULT_PARTICIPANTS.forEach(participantName => {
+        defaultParticipants.forEach(participantName => {
             const participant = document.createElement('li');
             participant.className = 'participant';
             
@@ -432,14 +246,15 @@ document.addEventListener('DOMContentLoaded', function() {
         const dateTimeString = now.toLocaleString();
         const sheetId = 'sheet_' + Date.now();
         
-        sheetName.textContent = `Kharcha-${dateTimeString}`;
+        sheetName.textContent = `Hisaab-${dateTimeString}`;
         
         currentSheetData = {
             id: sheetId,
-            name: `Kharcha-${dateTimeString}`,
+            name: `Hisaab-${dateTimeString}`,
             date: dateTimeString,
             participants: selectedParticipants,
             expenses: {},
+            settlements: {},
             createdAt: new Date().toISOString()
         };
         
@@ -495,10 +310,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 const mealsSelect = document.createElement('select');
                 mealsSelect.dataset.participant = participant;
                 
-                [1, 2, 3].forEach(mealCount => {
+                const mealOptions = [
+                    { value: 1, text: '1 Meal' },
+                    { value: 2, text: '2 Meals' },
+                    { value: 3, text: 'All Meals' }
+                ];
+                
+                mealOptions.forEach(mealOption => {
                     const option = document.createElement('option');
-                    option.value = mealCount.toString();
-                    option.textContent = `${mealCount} Meal${mealCount > 1 ? 's' : ''}`;
+                    option.value = mealOption.value.toString();
+                    option.textContent = mealOption.text;
                     mealsSelect.appendChild(option);
                 });
                 
@@ -508,7 +329,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
                 mealsCell.appendChild(mealsSelect);
             } else {
-                mealsCell.textContent = currentSheetData.expenses[participant].meals;
+                const mealsValue = currentSheetData.expenses[participant].meals;
+                mealsCell.textContent = mealsValue === 3 ? 'All Meals' : mealsValue + ' Meal' + (mealsValue > 1 ? 's' : '');
             }
             
             // To Be Paid
@@ -615,10 +437,16 @@ document.addEventListener('DOMContentLoaded', function() {
             const settlementAmount = Math.min(creditor.amount, debtor.amount);
             
             if (settlementAmount > 0.01) {
+                const settlementKey = `${debtor.name}_to_${creditor.name}`;
+                
                 settlements.push({
                     from: debtor.name,
                     to: creditor.name,
-                    amount: settlementAmount.toFixed(2)
+                    amount: settlementAmount.toFixed(2),
+                    key: settlementKey,
+                    status: currentSheetData.settlements && currentSheetData.settlements[settlementKey] 
+                           ? currentSheetData.settlements[settlementKey].status 
+                           : 'not-paid'
                 });
                 
                 creditor.amount -= settlementAmount;
@@ -632,6 +460,21 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
         
+        // Store settlements in currentSheetData
+        currentSheetData.settlements = {};
+        settlements.forEach(settlement => {
+            currentSheetData.settlements[settlement.key] = {
+                from: settlement.from,
+                to: settlement.to,
+                amount: settlement.amount,
+                status: settlement.status
+            };
+        });
+        
+        renderSettlementList(settlements);
+    }
+    
+    function renderSettlementList(settlements) {
         settlementList.innerHTML = '';
         if (settlements.length === 0) {
             settlementList.innerHTML = '<div class="no-settlements">All balances are settled! 🎉</div>';
@@ -639,12 +482,41 @@ document.addEventListener('DOMContentLoaded', function() {
             settlements.forEach(settlement => {
                 const settlementItem = document.createElement('div');
                 settlementItem.className = 'settlement-item';
-                settlementItem.innerHTML = `
-                    <span><strong>${settlement.from}</strong></span>
-                    <span class="settlement-arrow">→</span>
-                    <span><strong>${settlement.to}</strong></span>
-                    <span class="settlement-amount">${settlement.amount} SAR</span>
-                `;
+                
+                if (isAdmin) {
+                    settlementItem.innerHTML = `
+                        <div class="settlement-details">
+                            <span class="settlement-from">${settlement.from}</span>
+                            <span class="settlement-arrow">→</span>
+                            <span class="settlement-to">${settlement.to}</span>
+                            <span class="settlement-amount">${settlement.amount} SAR</span>
+                            <select class="settlement-status" data-key="${settlement.key}">
+                                <option value="not-paid" ${settlement.status === 'not-paid' ? 'selected' : ''}>Not Paid</option>
+                                <option value="paid" ${settlement.status === 'paid' ? 'selected' : ''}>Paid</option>
+                            </select>
+                        </div>
+                    `;
+                    
+                    const statusSelect = settlementItem.querySelector('.settlement-status');
+                    statusSelect.addEventListener('change', function() {
+                        currentSheetData.settlements[this.dataset.key].status = this.value;
+                        saveSheet();
+                    });
+                } else {
+                    const statusClass = settlement.status === 'paid' ? 'status-paid' : 'status-not-paid';
+                    const statusText = settlement.status === 'paid' ? 'Paid' : 'Not Paid';
+                    
+                    settlementItem.innerHTML = `
+                        <div class="settlement-details">
+                            <span class="settlement-from">${settlement.from}</span>
+                            <span class="settlement-arrow">→</span>
+                            <span class="settlement-to">${settlement.to}</span>
+                            <span class="settlement-amount">${settlement.amount} SAR</span>
+                            <span class="settlement-status ${statusClass}">${statusText}</span>
+                        </div>
+                    `;
+                }
+                
                 settlementList.appendChild(settlementItem);
             });
         }
@@ -656,22 +528,28 @@ document.addEventListener('DOMContentLoaded', function() {
         closeSheet();
     }
     
-    function saveSheet() {
-        if (!currentSheetData || !isAdmin) return;
-        
-        calculateShares();
-        
-        const existingIndex = savedSheets.findIndex(sheet => sheet.id === currentSheetData.id);
-        if (existingIndex !== -1) {
-            savedSheets[existingIndex] = currentSheetData;
-        } else {
-            savedSheets.push(currentSheetData);
-        }
-        
-        saveDataToGitHub(savedSheets);
-        loadSavedSheets();
-        alert('Sheet saved successfully!');
+   function saveSheet() {
+    if (!currentSheetData || !isAdmin) return;
+    
+    calculateShares();
+    
+    const existingIndex = savedSheets.findIndex(sheet => sheet.id === currentSheetData.id);
+    if (existingIndex !== -1) {
+        savedSheets[existingIndex] = currentSheetData;
+    } else {
+        savedSheets.push(currentSheetData);
     }
+    
+    localStorage.setItem('hisaabKitaabSheets', JSON.stringify(savedSheets));
+    loadSavedSheets();
+    
+    // NEW: Auto-sync to cloud
+    if (window.firebaseSync && window.firebaseSync.isInitialized) {
+        window.firebaseSync.saveToCloud(savedSheets);
+    }
+    
+    alert('Sheet saved successfully!');
+}
     
     function closeSheet() {
         sheetSection.style.display = 'none';
@@ -694,7 +572,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!currentSheetData || !isAdmin) return;
         
         savedSheets = savedSheets.filter(sheet => sheet.id !== currentSheetData.id);
-        saveDataToGitHub(savedSheets);
+        localStorage.setItem('hisaabKitaabSheets', JSON.stringify(savedSheets));
         loadSavedSheets();
         closeSheet();
         hideDeleteConfirmation();
@@ -864,8 +742,17 @@ document.addEventListener('DOMContentLoaded', function() {
             const sheetActions = document.createElement('div');
             sheetActions.className = 'sheet-item-actions';
             
-            // Only show delete button for admin
             if (isAdmin) {
+                const renameBtn = document.createElement('button');
+                renameBtn.className = 'rename-sheet-btn';
+                renameBtn.innerHTML = '✏️';
+                renameBtn.title = 'Rename Sheet';
+                renameBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    renameSheet(sheet.id);
+                });
+                sheetActions.appendChild(renameBtn);
+                
                 const deleteBtn = document.createElement('button');
                 deleteBtn.className = 'delete-sheet-btn';
                 deleteBtn.innerHTML = '🗑️';
@@ -890,19 +777,64 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    function deleteSheet(sheetId) {
-        if (!isAdmin) return;
+    function renameSheet(sheetId) {
+    if (!isAdmin) return;
+    
+    const sheet = savedSheets.find(s => s.id === sheetId);
+    if (!sheet) {
+        alert('Sheet not found!');
+        return;
+    }
+    
+    const newName = prompt('Enter new name for the sheet:', sheet.name);
+    if (newName && newName.trim() !== '') {
+        const trimmedName = newName.trim();
         
-        savedSheets = savedSheets.filter(sheet => sheet.id !== sheetId);
-        saveDataToGitHub(savedSheets);
-        loadSavedSheets();
+        // Update the sheet name
+        sheet.name = trimmedName;
+        sheet.date = new Date().toLocaleString();
+        sheet.lastUpdated = new Date().toISOString(); // Add this line
         
-        if (currentSheetData && currentSheetData.id === sheetId) {
-            closeSheet();
+        // Save to localStorage
+        localStorage.setItem('hisaabKitaabSheets', JSON.stringify(savedSheets));
+        
+        // NEW: Force sync to Firebase
+        if (window.firebaseSync && window.firebaseSync.isInitialized) {
+            window.firebaseSync.saveToCloud(savedSheets);
         }
         
-        alert('Sheet deleted successfully!');
+        // Update UI
+        loadSavedSheets();
+        
+        // Update current sheet if it's open
+        if (currentSheetData && currentSheetData.id === sheetId) {
+            currentSheetData.name = trimmedName;
+            sheetName.textContent = trimmedName;
+        }
+        
+        alert('Sheet renamed successfully!');
     }
+}
+    
+  function deleteSheet(sheetId) {
+    if (!isAdmin) return;
+    
+    savedSheets = savedSheets.filter(sheet => sheet.id !== sheetId);
+    localStorage.setItem('hisaabKitaabSheets', JSON.stringify(savedSheets));
+    
+    // NEW: Sync to Firebase after deletion
+    if (window.firebaseSync && window.firebaseSync.isInitialized) {
+        window.firebaseSync.saveToCloud(savedSheets);
+    }
+    
+    loadSavedSheets();
+    
+    if (currentSheetData && currentSheetData.id === sheetId) {
+        closeSheet();
+    }
+    
+    alert('Sheet deleted successfully!');
+}
     
     function openSheet(sheetId) {
         const sheet = savedSheets.find(s => s.id === sheetId);
@@ -915,103 +847,27 @@ document.addEventListener('DOMContentLoaded', function() {
         selectedParticipants = currentSheetData.participants;
         sheetName.textContent = currentSheetData.name;
         
-        renderExpenseTableWithSavedData();
+        renderExpenseTable();
         
-        sheetSection.style.display = 'block';
-        participantsSection.style.display = 'none';
-        editParticipantsSection.style.display = 'none';
-        sheetSection.scrollIntoView({ behavior: 'smooth' });
-    }
-    
-    // FIXED FUNCTION: Properly render saved data when reopening sheets
-    function renderExpenseTableWithSavedData() {
-        tableBody.innerHTML = '';
-        
-        selectedParticipants.forEach(participant => {
-            const row = document.createElement('tr');
-            
-            // Participant Name
-            const nameCell = document.createElement('td');
-            nameCell.textContent = participant;
-            
-            // Spent Amount
-            const spentCell = document.createElement('td');
-            spentCell.className = 'amount-cell';
-            
-            if (isAdmin) {
-                const spentInput = document.createElement('input');
-                spentInput.type = 'number';
-                spentInput.min = '0';
-                spentInput.step = '0.01';
-                spentInput.value = currentSheetData.expenses[participant]?.spent || 0;
-                spentInput.dataset.participant = participant;
-                spentInput.addEventListener('input', function() {
-                    currentSheetData.expenses[participant].spent = parseFloat(this.value) || 0;
-                });
-                spentCell.appendChild(spentInput);
-            } else {
-                spentCell.textContent = (currentSheetData.expenses[participant]?.spent || 0).toFixed(2) + ' SAR';
-            }
-            
-            // Meals
-            const mealsCell = document.createElement('td');
-            mealsCell.className = 'meals-cell';
-            
-            if (isAdmin) {
-                const mealsSelect = document.createElement('select');
-                mealsSelect.dataset.participant = participant;
-                
-                [1, 2, 3].forEach(mealCount => {
-                    const option = document.createElement('option');
-                    option.value = mealCount.toString();
-                    option.textContent = `${mealCount} Meal${mealCount > 1 ? 's' : ''}`;
-                    mealsSelect.appendChild(option);
-                });
-                
-                mealsSelect.value = (currentSheetData.expenses[participant]?.meals || 3).toString();
-                mealsSelect.addEventListener('change', function() {
-                    currentSheetData.expenses[participant].meals = parseInt(this.value);
-                });
-                mealsCell.appendChild(mealsSelect);
-            } else {
-                mealsCell.textContent = currentSheetData.expenses[participant]?.meals || 3;
-            }
-            
-            // To Be Paid
-            const toBePaidCell = document.createElement('td');
-            toBePaidCell.className = 'amount-cell';
-            toBePaidCell.textContent = (currentSheetData.expenses[participant]?.toBePaid || 0).toFixed(2) + ' SAR';
-            toBePaidCell.dataset.participant = participant;
-            
-            row.appendChild(nameCell);
-            row.appendChild(spentCell);
-            row.appendChild(mealsCell);
-            row.appendChild(toBePaidCell);
-            tableBody.appendChild(row);
-        });
-        
-        // Calculate and display totals
         let totalSpent = 0;
         let totalMeals = 0;
         let oneMealCount = 0, twoMealsCount = 0, threeMealsCount = 0;
         
         selectedParticipants.forEach(participant => {
-            totalSpent += currentSheetData.expenses[participant]?.spent || 0;
-            totalMeals += currentSheetData.expenses[participant]?.meals || 3;
+            totalSpent += currentSheetData.expenses[participant].spent;
+            totalMeals += currentSheetData.expenses[participant].meals;
             
-            const meals = currentSheetData.expenses[participant]?.meals || 3;
-            switch(meals) {
+            switch(currentSheetData.expenses[participant].meals) {
                 case 1: oneMealCount++; break;
                 case 2: twoMealsCount++; break;
                 case 3: threeMealsCount++; break;
-                default: threeMealsCount++; break;
             }
         });
         
         const costPerMeal = totalMeals > 0 ? totalSpent / totalMeals : 0;
         
-        // Update Summary Display
         totalParticipantsElement.textContent = selectedParticipants.length;
+        document.getElementById('totalSpentCell').textContent = totalSpent.toFixed(2) + ' SAR';
         totalSpentElement.textContent = totalSpent.toFixed(2) + ' SAR';
         totalMealsElement.textContent = totalMeals;
         costPerMealElement.textContent = costPerMeal.toFixed(2) + ' SAR';
@@ -1019,10 +875,9 @@ document.addEventListener('DOMContentLoaded', function() {
         twoMealsCountElement.textContent = twoMealsCount;
         threeMealsCountElement.textContent = threeMealsCount;
         
-        // Calculate and display To Be Paid amounts
         selectedParticipants.forEach(participant => {
-            const spentAmount = currentSheetData.expenses[participant]?.spent || 0;
-            const mealsAttended = currentSheetData.expenses[participant]?.meals || 3;
+            const spentAmount = currentSheetData.expenses[participant].spent;
+            const mealsAttended = currentSheetData.expenses[participant].meals;
             const shareAmount = costPerMeal * mealsAttended;
             const toBePaid = shareAmount - spentAmount;
             currentSheetData.expenses[participant].toBePaid = toBePaid;
@@ -1034,17 +889,50 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
         
-        // Add Total Row
-        const totalRow = document.createElement('tr');
-        totalRow.className = 'total-row';
-        totalRow.innerHTML = `
-            <td>Total</td>
-            <td class="amount-cell">${totalSpent.toFixed(2)} SAR</td>
-            <td>${totalMeals}</td>
-            <td></td>
-        `;
-        tableBody.appendChild(totalRow);
-        
         generateSettlementSuggestions();
+        
+        sheetSection.style.display = 'block';
+        participantsSection.style.display = 'none';
+        editParticipantsSection.style.display = 'none';
+        sheetSection.scrollIntoView({ behavior: 'smooth' });
     }
+    
+    // PDF Generation Handler
+    function handlePDFGeneration() {
+        if (!currentSheetData) {
+            alert('No sheet data available to share');
+            return;
+        }
+        
+        // Ensure calculations are done
+        if (isAdmin && (!currentSheetData.totalSpent || currentSheetData.totalSpent === 0)) {
+            calculateShares();
+        }
+        
+        // Use the PDF generator
+        if (window.generateExpensePDF) {
+            window.generateExpensePDF(currentSheetData, selectedParticipants, isAdmin);
+        } else {
+            alert('PDF generator not loaded. Please refresh the page.');
+        }
+    }
+    
+    // Loading functions for PDF
+    function showPDFLoading() {
+        const loadingOverlay = document.getElementById('pdfLoadingOverlay');
+        if (loadingOverlay) {
+            loadingOverlay.style.display = 'flex';
+        }
+    }
+    
+    function hidePDFLoading() {
+        const loadingOverlay = document.getElementById('pdfLoadingOverlay');
+        if (loadingOverlay) {
+            loadingOverlay.style.display = 'none';
+        }
+    }
+    
+    // Make functions available globally for PDF generator
+    window.showPDFLoading = showPDFLoading;
+    window.hidePDFLoading = hidePDFLoading;
 });
