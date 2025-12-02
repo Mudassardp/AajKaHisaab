@@ -76,14 +76,6 @@ h1 {
     margin-bottom: 5px;
 }
 
-.tagline {
-    color: #7f8c8d;
-    font-size: 1.1rem;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
 .main-content {
     display: flex;
     flex-direction: column;
@@ -100,21 +92,10 @@ h1 {
 
 .login-section {
     text-align: center;
-    padding: 40px 20px;
+    padding: 30px 20px;
     background-color: #f8f9fa;
     border-radius: 8px;
     border: 1px dashed #dee2e6;
-}
-
-.login-section h2 {
-    color: #2c3e50;
-    margin-bottom: 15px;
-}
-
-.login-section p {
-    color: #7f8c8d;
-    margin-bottom: 20px;
-    font-size: 1.1rem;
 }
 
 .create-section, .existing-sheets-section {
@@ -176,6 +157,16 @@ h1 {
 .btn-small {
     padding: 8px 15px;
     font-size: 0.9rem;
+}
+
+#logoutBtn {
+    background-color: #e74c3c;
+    border-color: #e74c3c;
+}
+
+#logoutBtn:hover {
+    background-color: #c0392b;
+    border-color: #c0392b;
 }
 
 .participants-section, .sheet-section, .edit-participants-section {
@@ -467,7 +458,6 @@ select {
     flex-shrink: 0;
 }
 
-/* Settlement Status Styles */
 .settlement-status {
     font-weight: bold;
     padding: 5px 10px;
@@ -491,7 +481,6 @@ select {
     border-color: #e74c3c;
 }
 
-/* Toggle Button for Admin */
 .settlement-toggle-btn {
     font-weight: bold;
     padding: 5px 10px;
@@ -638,7 +627,6 @@ select {
     background-color: #ffeaea;
 }
 
-/* Modal Styles */
 .modal {
     display: none;
     position: fixed;
@@ -699,7 +687,6 @@ footer {
     font-size: 0.9rem;
 }
 
-/* PDF Loading Styles */
 .pdf-loading {
     position: fixed;
     top: 0;
@@ -735,7 +722,6 @@ footer {
     100% { transform: rotate(360deg); }
 }
 
-/* PDF Page Break Controls */
 .pdf-section {
     margin-bottom: 25px;
     page-break-inside: avoid;
@@ -751,23 +737,19 @@ footer {
     page-break-inside: avoid;
 }
 
-/* Ensure no content gets cut between pages */
 .pdf-container * {
     page-break-inside: avoid;
     page-break-after: auto;
 }
 
-/* Prevent tables from breaking across pages */
 table {
     page-break-inside: avoid;
 }
 
-/* Ensure headers stay with their content */
 h1, h2, h3 {
     page-break-after: avoid;
 }
 
-/* Better spacing for PDF */
 @media print {
     .pdf-container {
         padding: 15px;
@@ -849,6 +831,45 @@ h1, h2, h3 {
         font-size: 1.1rem;
     }
     
+    .header-top {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 15px;
+    }
+    
+    .sync-btn {
+        order: 1;
+        align-self: flex-start;
+        margin-right: 0;
+        padding: 6px 12px;
+        font-size: 0.65rem;
+        margin-bottom: -20px;
+        margin-top: 0px;
+    }
+    
+    .mode-tabs {
+        order: 2;
+        margin: 0;
+        margin-top: 5px;
+        margin-bottom: -25px;
+    }
+    
+    .user-status {
+        order: 3;
+        margin-left: 0;
+        align-self: flex-end;
+        margin-top: 8px;
+    }
+    
+    #logoutBtn {
+        padding: 4px 8px;
+        font-size: 0.75rem;
+        min-width: 60px;
+        margin-top: 0px;
+        margin-bottom: -20px;
+       
+    }
+    
     .participants-list {
         grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
     }
@@ -875,24 +896,77 @@ h1, h2, h3 {
         overflow-x: auto;
     }
     
+    /* SETTLEMENT CARD LAYOUT FOR MOBILE */
     .settlement-details {
-        font-size: 0.8rem;
-        flex-wrap: wrap;
-        justify-content: center;
-        gap: 8px;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 10px;
+        width: 100%;
+        padding-bottom: 8px;
+        border-bottom: 1px solid #eaeaea;
+        margin-bottom: 8px;
     }
     
-    .settlement-from, .settlement-to, .settlement-arrow, .settlement-amount, .settlement-status, .settlement-toggle-btn {
-        flex: 0 0 auto;
+    /* First line container: Person1 -> Person2 */
+    .settlement-first-line {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 5px;
+        flex-wrap: nowrap;
+        margin-bottom: 8px;
+        width: 100%;
+    }
+    
+    /* First line items */
+    .settlement-from,
+    .settlement-to,
+    .settlement-arrow {
+        display: inline-block;
+        white-space: nowrap;
+    }
+    
+    .settlement-from,
+    .settlement-to {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #2c3e50;
     }
     
     .settlement-arrow {
-        display: none;
+        color: #7f8c8d;
+        font-weight: bold;
+        margin: 0 3px;
+        font-size: 0.9rem;
     }
     
-    .settlement-amount, .settlement-status, .settlement-toggle-btn {
-        min-width: 60px;
+    /* Second line container */
+    .settlement-second-line {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+    
+    /* Second line items */
+    .settlement-amount,
+    .settlement-status,
+    .settlement-toggle-btn {
+        min-width: 80px;
+        padding: 6px 10px;
         font-size: 0.8rem;
+        margin: 0;
+        display: inline-block;
+    }
+    
+    .settlement-arrow {
+        display: inline-block !important;
+    }
+    
+    .settlement-from, .settlement-to, .settlement-arrow, .settlement-amount, .settlement-status, .settlement-toggle-btn {
+        flex: none !important;
     }
     
     .sheet-name {

@@ -554,13 +554,17 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     settlementItem.innerHTML = `
                         <div class="settlement-details">
-                            <span class="settlement-from">${settlement.from}</span>
-                            <span class="settlement-arrow">→</span>
-                            <span class="settlement-to">${settlement.to}</span>
-                            <span class="settlement-amount">${settlement.amount} SAR</span>
-                            <button class="settlement-toggle-btn ${statusClass}" data-key="${settlement.key}">
-                                ${statusText}
-                            </button>
+                            <div class="settlement-first-line">
+                                <span class="settlement-from">${settlement.from}</span>
+                                <span class="settlement-arrow">→</span>
+                                <span class="settlement-to">${settlement.to}</span>
+                            </div>
+                            <div class="settlement-second-line">
+                                <span class="settlement-amount">${settlement.amount} SAR</span>
+                                <button class="settlement-toggle-btn ${statusClass}" data-key="${settlement.key}">
+                                    ${statusText}
+                                </button>
+                            </div>
                         </div>
                     `;
                     
@@ -587,11 +591,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     settlementItem.innerHTML = `
                         <div class="settlement-details">
-                            <span class="settlement-from">${settlement.from}</span>
-                            <span class="settlement-arrow">→</span>
-                            <span class="settlement-to">${settlement.to}</span>
-                            <span class="settlement-amount">${settlement.amount} SAR</span>
-                            <span class="settlement-status ${statusClass}">${statusText}</span>
+                            <div class="settlement-first-line">
+                                <span class="settlement-from">${settlement.from}</span>
+                                <span class="settlement-arrow">→</span>
+                                <span class="settlement-to">${settlement.to}</span>
+                            </div>
+                            <div class="settlement-second-line">
+                                <span class="settlement-amount">${settlement.amount} SAR</span>
+                                <span class="settlement-status ${statusClass}">${statusText}</span>
+                            </div>
                         </div>
                     `;
                 }

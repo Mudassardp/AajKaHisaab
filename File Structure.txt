@@ -8,3 +8,5 @@ Your Project Folder/
 └── js/
     ├── script.js
     └── pdf-generator.js
+    └── Firebaseconfig.js
+    └── firebase-sync.js
