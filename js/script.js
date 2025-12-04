@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const createSheetBtn = document.getElementById('createSheetBtn');
     const tableBody = document.getElementById('tableBody');
     const calculateBtn = document.getElementById('calculateBtn');
-    const saveCloseBtn = document.getElementById('saveCloseBtn');
+    const saveBtn = document.getElementById('saveBtn');
     const sharePdfBtn = document.getElementById('sharePdfBtn');
     const closeSheetBtn = document.getElementById('closeSheetBtn');
     const deleteSheetBtn = document.getElementById('deleteSheetBtn');
@@ -106,7 +106,7 @@ document.addEventListener('DOMContentLoaded', function() {
         createBtn.addEventListener('click', showParticipantsSection);
         createSheetBtn.addEventListener('click', createNewSheet);
         calculateBtn.addEventListener('click', calculateShares);
-        saveCloseBtn.addEventListener('click', saveAndCloseSheet);
+        saveBtn.addEventListener('click', saveSheet);
         sharePdfBtn.addEventListener('click', handlePDFGeneration);
         closeSheetBtn.addEventListener('click', closeSheet);
         deleteSheetBtn.addEventListener('click', showDeleteConfirmation);
@@ -209,7 +209,7 @@ document.addEventListener('DOMContentLoaded', function() {
         loginSection.style.display = 'none';
         adminSections.style.display = 'block';
         calculateBtn.style.display = 'inline-block';
-        saveCloseBtn.style.display = 'inline-block';
+        saveBtn.style.display = 'inline-block';
         sharePdfBtn.style.display = 'inline-block';
         adminSheetActions.style.display = 'flex';
         closeSheetBtn.style.display = 'inline-block';
@@ -219,7 +219,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function updateUIForViewer() {
         calculateBtn.style.display = 'none';
-        saveCloseBtn.style.display = 'none';
+        saveBtn.style.display = 'none';
         sharePdfBtn.style.display = 'inline-block';
         adminSheetActions.style.display = 'none';
         participantsSection.style.display = 'none';
@@ -233,7 +233,7 @@ document.addEventListener('DOMContentLoaded', function() {
         loginSection.style.display = 'block';
         adminSections.style.display = 'none';
         calculateBtn.style.display = 'none';
-        saveCloseBtn.style.display = 'none';
+        saveBtn.style.display = 'none';
         sharePdfBtn.style.display = 'none';
         adminSheetActions.style.display = 'none';
         participantsSection.style.display = 'none';
@@ -609,34 +609,30 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    function saveAndCloseSheet() {
-        if (!isAdmin) return;
-        saveSheet();
-        closeSheet();
-    }
+  
     
     function saveSheet() {
-        if (!currentSheetData || !isAdmin) return;
-        
-        calculateShares();
-        
-        const existingIndex = savedSheets.findIndex(sheet => sheet.id === currentSheetData.id);
-        if (existingIndex !== -1) {
-            savedSheets[existingIndex] = currentSheetData;
-        } else {
-            savedSheets.push(currentSheetData);
-        }
-        
-        localStorage.setItem('hisaabKitaabSheets', JSON.stringify(savedSheets));
-        loadSavedSheets();
-        
-        // NEW: Auto-sync to cloud
-        if (window.firebaseSync && window.firebaseSync.isInitialized) {
-            window.firebaseSync.saveToCloud(savedSheets);
-        }
-        
-        alert('Sheet saved successfully!');
+    if (!currentSheetData || !isAdmin) return;
+    
+    calculateShares(); // Ensure calculations are up-to-date
+    
+    const existingIndex = savedSheets.findIndex(sheet => sheet.id === currentSheetData.id);
+    if (existingIndex !== -1) {
+        savedSheets[existingIndex] = currentSheetData;
+    } else {
+        savedSheets.push(currentSheetData);
     }
+    
+    localStorage.setItem('hisaabKitaabSheets', JSON.stringify(savedSheets));
+    loadSavedSheets();
+    
+    // Auto-sync to cloud
+    if (window.firebaseSync && window.firebaseSync.isInitialized) {
+        window.firebaseSync.saveToCloud(savedSheets);
+    }
+    
+    alert('Sheet saved successfully!');
+}
     
     function closeSheet() {
         sheetSection.style.display = 'none';
