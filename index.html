@@ -6,42 +6,48 @@
     <title>HisaabKitaabApp</title>
     <link rel="stylesheet" href="css/style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- Cropper.js for image cropping -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+    <script src="js/profile-manager.js"></script>
 </head>
 <body>
     <div class="container">
         <header>
             <div class="header-top">
-
-                 
-                     
-                    
-
-       
-
-                
-                   <button id="manualSyncBtn" class="btn btn-small btn-info sync-btn">Sync to Cloud</button>
-                
-                <div class="mode-tabs">
-                    <button id="viewerTab" class="mode-tab active">Viewer Mode</button>
-                    <button id="adminTab" class="mode-tab">Admin Mode</button>
+                <div class="mode-tabs-container">
+                    <div class="mode-tabs">
+                        <button id="viewerTab" class="mode-tab active">Viewer Mode</button>
+                        <button id="adminTab" class="mode-tab">Admin Mode</button>
+                    </div>
+                    <button id="manualSyncBtn" class="sync-tab-btn">
+                        <span class="sync-icon">🔄</span> Sync
+                    </button>
                 </div>
-                <div id="userStatus" class="user-status" style="display: none;">
-                    <button id="logoutBtn" class="btn btn-small">Logout</button>
+                
+                <div class="header-controls">
+                    <!-- Control Panel Button (Admin Only) -->
+                    <button id="controlPanelBtn" class="btn btn-small btn-info" style="display: none;">
+                        <span class="control-icon">⚙️</span> Control Panel
+                    </button>
+                    
+                    <!-- Dark/Light Mode Toggle -->
+                    <button id="themeToggle" class="theme-toggle-btn" title="Toggle Dark/Light Mode">
+                        <span class="theme-icon">🌙</span>
+                    </button>
+                    
+                    <div id="userStatus" class="user-status" style="display: none;">
+                        <button id="logoutBtn" class="btn btn-small">Logout</button>
+                    </div>
                 </div>
             </div>
             
             <h1>HisaabKitaabApp</h1>
-                      <!-- <p class="tagline">Weekly Expense Split</p> -->
-                 <!-- <hr color="D3D3D3"
-                     size="0.5px" /> -->
-        
-           
         </header>
         
         <div class="main-content">
             <!-- Viewer Mode Content -->
             <div id="viewerContent" class="mode-content active">
-                <!-- Existing Sheets Section -->
                 <div class="existing-sheets-section">
                     <h2 class="section-title">Existing Expense Sheets</h2>
                     <div id="sheetsListContainer">
@@ -53,23 +59,17 @@
             
             <!-- Admin Mode Content -->
             <div id="adminContent" class="mode-content">
-                <!-- Login Section for Normal Users -->
                 <div id="loginSection" class="login-section">
-                   <!-- <h2>Admin Access Required</h2>
-                    <p>Login as admin to create and manage expense sheets.</p>-->
                     <div class="action-buttons">
                         <button id="loginAsAdminBtn" class="btn btn-info">Login as Admin</button>
                     </div>
                 </div>
 
-                <!-- Admin Only Sections -->
                 <div id="adminSections" style="display: none;">
                     <div class="create-section">
-                       <!--  <h2>Start a New Expense Sheet</h2> -->
                         <button id="createBtn" class="btn">Create New Hisaab</button>
                     </div>
                     
-                    <!-- Existing Sheets Section -->
                     <div class="existing-sheets-section">
                         <h2 class="section-title">Existing Expense Sheets</h2>
                         <div id="adminSheetsListContainer">
@@ -96,6 +96,12 @@
             <!-- Participants Section (Admin Only) -->
             <div id="participantsSection" class="participants-section">
                 <h2 class="section-title">Select Participants</h2>
+                <div class="color-legend">
+                    <div class="legend-item">
+                        <span>Default participants have unique colors</span>
+                    </div>
+                </div>
+                
                 <ul id="participantsList" class="participants-list"></ul>
                 
                 <div class="add-participant-section">
@@ -111,7 +117,7 @@
                 </div>
             </div>
             
-            <!-- Sheet Section (Different for Admin and Normal Users) -->
+            <!-- Sheet Section -->
             <div id="sheetSection" class="sheet-section">
                 <div class="sheet-header">
                     <div id="sheetName" class="sheet-name"></div>
@@ -217,8 +223,141 @@
             </div>
         </div>
         
+        <!-- Control Panel Modal -->
+        <div id="controlPanelModal" class="modal">
+            <div class="modal-content control-panel-modal">
+                <h3>Control Panel</h3>
+                
+                <!-- Default Participants Management -->
+                <div class="control-panel-section">
+                    <h4>Default Participants List</h4>
+                    <p class="section-description">Add, edit, or remove default participants. Changes here won't affect existing sheets.</p>
+                    
+                    <div class="add-participant-control">
+                        <input type="text" id="newDefaultParticipantInput" placeholder="Enter participant name" class="form-input">
+                        <button id="addDefaultParticipantBtn" class="btn btn-small">Add to Default List</button>
+                    </div>
+                    
+                    <ul id="defaultParticipantsList" class="default-participants-list">
+                        <!-- Default participants will be loaded here -->
+                    </ul>
+                </div>
+                
+                <div class="modal-buttons">
+                    <button id="closeControlPanelBtn" class="btn">Close Control Panel</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Profile Card Modal -->
+        <div id="profileCardModal" class="modal">
+            <div class="modal-content profile-card-modal">
+                <div class="profile-header">
+                    <div id="profileAvatar" class="profile-avatar-container">
+                        <!-- Profile image or initials will be inserted here -->
+                    </div>
+                    <h3 id="profileName">Participant Name</h3>
+                </div>
+                
+                <div class="profile-details">
+                    <div class="profile-field">
+                        <label>Mobile Number:</label>
+                        <span id="profileMobile">Not provided</span>
+                    </div>
+                    
+                    <div class="profile-field">
+                        <label>Bank(s):</label>
+                        <span id="profileBanks">Not provided</span>
+                    </div>
+                    
+                    <div class="profile-field">
+                        <label>Bank Accounts:</label>
+                        <div id="profileBankAccountsContainer" class="bank-accounts-container">
+                            <!-- Bank accounts with labels will be dynamically added here -->
+                            <div class="no-data">Not provided</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="profile-actions">
+                    <button id="editProfileBtn" class="btn btn-info" style="display: none;">Edit Profile</button>
+                    <button id="closeProfileBtn" class="btn">Close Profile</button>
+                </div>
+                
+                <!-- Edit Profile Form (Admin Only) -->
+<div id="editProfileForm" class="edit-profile-form" style="display: none;">
+    <h4>Edit Profile</h4>
+    <input type="hidden" id="editProfileParticipant">
+    
+    <div class="form-group">
+        <label>Profile Photo:</label>
+        <div class="profile-photo-upload">
+            <div id="profileImagePreview" class="profile-image-preview">
+                <div id="currentProfileImage" class="current-profile-image"></div>
+            </div>
+            <input type="file" id="profileImageUpload" accept="image/*" class="file-input" style="display: none;">
+            <div class="photo-upload-buttons">
+                <button id="uploadPhotoBtn" class="btn btn-small">Upload Photo</button>
+                <button id="removePhotoBtn" class="btn btn-small btn-danger" style="display: none;">Remove Photo</button>
+            </div>
+            <small>Click "Upload Photo" to add/change profile picture. You can crop the image after selecting.</small>
+        </div>
+    </div>
+    
+    <div class="form-group">
+        <label>Mobile Number:</label>
+        <input type="text" id="editMobile" class="form-input" placeholder="e.g., +966 5X XXX XXXX">
+    </div>
+    
+    <div class="form-group">
+        <label>Bank Accounts (one per line, format: Bank Name - IBAN):</label>
+        <textarea id="editBankAccounts" class="form-input" rows="4" placeholder="Alinma Bank - SA44 2000 0001 2345 6789 1234&#10;Al Rajhi Bank - SA44 3000 0001 2345 6789 1234"></textarea>
+        <small>Enter each bank account on a new line in format: "Bank Name - IBAN"</small>
+    </div>
+    
+    <!-- Preferred Bank Selection - THIS IS THE NEW SECTION -->
+    <div class="form-group">
+        <label>Preferred Bank for Settlements:</label>
+        <select id="editPreferredBank" class="form-input">
+            <option value="">No Preference (Use any available bank)</option>
+            <!-- Bank options will be dynamically added here -->
+        </select>
+        <small>Select your preferred bank for settlements. This helps prioritize same-bank transfers.</small>
+    </div>
+    
+    <div class="form-buttons">
+        <button id="saveProfileBtn" class="btn btn-success">Save Profile</button>
+        <button id="cancelEditProfileBtn" class="btn">Cancel</button>
+    </div>
+</div>
+        
+        <!-- Image Cropper Modal -->
+        <div id="imageCropperModal" class="modal">
+            <div class="modal-content cropper-modal">
+                <h3>Crop Profile Image</h3>
+                <div class="cropper-container">
+                    <img id="cropperImage" src="" alt="Image to crop" style="max-width: 100%;">
+                </div>
+                <div class="cropper-controls">
+                    <div class="cropper-zoom">
+                        <button id="zoomOutBtn" class="btn btn-small">-</button>
+                        <span>Zoom</span>
+                        <button id="zoomInBtn" class="btn btn-small">+</button>
+                    </div>
+                    <div class="cropper-rotate">
+                        <button id="rotateLeftBtn" class="btn btn-small">↺</button>
+                        <button id="rotateRightBtn" class="btn btn-small">↻</button>
+                    </div>
+                </div>
+                <div class="cropper-buttons">
+                    <button id="cropImageBtn" class="btn btn-success">Crop & Save</button>
+                    <button id="cancelCropBtn" class="btn">Cancel</button>
+                </div>
+            </div>
+        </div>
+        
         <footer>
-            <p>HisaabKitaab©2025(created by Mudassar)-v1.4</p>
+            <p>HisaabKitaab©2025(created by Mudassar)-v2.2</p>
         </footer>
     </div>
 
@@ -228,18 +367,15 @@
         <div class="pdf-loading-text">Generating PDF...</div>
     </div>
 
-    <!-- IMPORTANT: Load scripts in correct order -->
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
+    <!-- Remove firebase-auth if not using authentication -->
 
-   <!-- Firebase SDKs -->
-<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
-
-<!-- Firebase Sync -->
-<script src="js/firebase-sync.js"></script>
-
-<!-- Your existing scripts -->
-<script src="js/pdf-generator.js"></script>
-<script src="js/script.js"></script>
+    <!-- Your scripts -->
+    <script src="js/firebase-sync.js"></script>
+    <script src="js/pdf-generator.js"></script>
+    <script src="js/script.js"></script>
 </body>
 </html>

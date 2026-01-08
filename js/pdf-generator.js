@@ -1,6 +1,33 @@
-// PDF Generator for HisaabKitaab
+// PDF Generator for HisaabKitaab v2.2
 (function() {
     'use strict';
+    
+    // Helper function to generate avatar initials
+    function generateAvatarInitials(name) {
+        if (!name) return '?';
+        
+        const parts = name.trim().split(' ');
+        if (parts.length >= 2) {
+            return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+        }
+        return name[0].toUpperCase();
+    }
+    
+    // Helper function to generate consistent avatar color
+    function generateAvatarColor(name) {
+        const colors = [
+            '#3498db', '#2ecc71', '#e74c3c', '#f39c12', 
+            '#9b59b6', '#1abc9c', '#d35400', '#34495e',
+            '#8e44ad', '#27ae60', '#c0392b', '#16a085'
+        ];
+        
+        let hash = 0;
+        for (let i = 0; i < name.length; i++) {
+            hash = name.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        
+        return colors[Math.abs(hash) % colors.length];
+    }
     
     // Main PDF generation function
     window.generateExpensePDF = function(currentSheetData, selectedParticipants, isAdmin) {
@@ -121,15 +148,15 @@
         
         // Header Section
         const header = `
-    <div style="text-align: center; border-bottom: 2px solid #3498db; padding-bottom: 15px; margin-bottom: 20px; page-break-after: avoid;">
-        <h1 style="color: #2c3e50; font-size: 24px; margin-bottom: 5px; font-weight: bold;">HisaabKitaabApp</h1>
-        <p style="color: #7f8c8d; font-size: 14px; margin-bottom: 15px;">Weekly Expense Split</p>
-        <div style="display: flex; justify-content: space-between; align-items: center; background-color: #f8f9fa; padding: 10px 15px; border-radius: 5px; border-left: 4px solid #3498db;">
-            <strong style="color: #2c3e50; font-size: 16px;">${currentSheetData.name || 'Unnamed Sheet'}</strong>
-            <span style="color: #7f8c8d; font-size: 12px;">Updated: ${displayDate}</span>
-        </div>
-    </div>
-`;
+            <div style="text-align: center; border-bottom: 2px solid #3498db; padding-bottom: 15px; margin-bottom: 20px; page-break-after: avoid;">
+                <h1 style="color: #2c3e50; font-size: 24px; margin-bottom: 5px; font-weight: bold;">HisaabKitaabApp v2.2</h1>
+                <p style="color: #7f8c8d; font-size: 14px; margin-bottom: 15px;">Expense Management System</p>
+                <div style="display: flex; justify-content: space-between; align-items: center; background-color: #f8f9fa; padding: 10px 15px; border-radius: 5px; border-left: 4px solid #3498db;">
+                    <strong style="color: #2c3e50; font-size: 16px;">${currentSheetData.name || 'Unnamed Sheet'}</strong>
+                    <span style="color: #7f8c8d; font-size: 12px;">Updated: ${displayDate}</span>
+                </div>
+            </div>
+        `;
         
         // Summary Section
         let summarySection = `
@@ -164,7 +191,7 @@
             </div>
         `;
         
-        // Individual Shares Section
+        // Individual Shares Section with Avatars
         let sharesSection = `
             <div style="margin-bottom: 20px; page-break-after: avoid;">
                 <h2 style="color: #2c3e50; font-size: 18px; margin-bottom: 10px; border-bottom: 1px solid #eaeaea; padding-bottom: 5px; font-weight: bold;">Individual Shares</h2>
@@ -185,10 +212,17 @@
             const mealsDisplay = expense.meals === 3 ? 'All Meals' : `${expense.meals} Meal${expense.meals > 1 ? 's' : ''}`;
             const toBePaidColor = expense.toBePaid > 0 ? '#e74c3c' : expense.toBePaid < 0 ? '#27ae60' : '#2c3e50';
             const toBePaidSign = expense.toBePaid > 0 ? '+' : '';
+            const avatarColor = generateAvatarColor(participant);
+            const avatarInitials = generateAvatarInitials(participant);
             
             sharesSection += `
                         <tr>
-                            <td style="padding: 6px 8px; border-bottom: 1px solid #e0e0e0;">${participant}</td>
+                            <td style="padding: 6px 8px; border-bottom: 1px solid #e0e0e0; display: flex; align-items: center; gap: 8px;">
+                                <div style="width: 24px; height: 24px; border-radius: 50%; background-color: ${avatarColor}; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 10px; flex-shrink: 0;">
+                                    ${avatarInitials}
+                                </div>
+                                <span>${participant}</span>
+                            </td>
                             <td style="padding: 6px 8px; border-bottom: 1px solid #e0e0e0; text-align: right; font-weight: 600;">${expense.spent.toFixed(2)}</td>
                             <td style="padding: 6px 8px; border-bottom: 1px solid #e0e0e0; text-align: center;">${mealsDisplay}</td>
                             <td style="padding: 6px 8px; border-bottom: 1px solid #e0e0e0; text-align: right; font-weight: 600; color: ${toBePaidColor};">${toBePaidSign}${expense.toBePaid.toFixed(2)}</td>
@@ -229,6 +263,16 @@
                 const statusBg = settlement.status === 'paid' ? '#e8f6f3' : '#fdedec';
                 const statusText = settlement.status === 'paid' ? 'Paid' : 'Not Paid';
                 
+                // Add bank match indicator if applicable
+                let bankMatchHtml = '';
+                if (settlement.bankMatch && settlement.bank) {
+                    bankMatchHtml = `
+                        <div style="margin-top: 5px; font-size: 11px; color: #27ae60; background-color: #e8f6f3; padding: 3px 8px; border-radius: 3px; border: 1px solid #27ae60; display: inline-block;">
+                            Same Bank: ${settlement.bank}
+                        </div>
+                    `;
+                }
+                
                 settlementsSection += `
                     <div style="background-color: #f8f9fa; padding: 10px 12px; margin-bottom: 6px; border-radius: 5px; border-left: 3px solid #9b59b6; page-break-inside: avoid;">
                         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
@@ -246,6 +290,7 @@
                                 </span>
                             </div>
                         </div>
+                        ${bankMatchHtml}
                     </div>
                 `;
             });
@@ -254,11 +299,11 @@
         settlementsSection += `</div>`;
         
         // Footer
-    const footer = `
-    <div style="text-align: center; margin-top: 25px; padding-top: 12px; border-top: 1px solid #eaeaea; color: #7f8c8d; font-size: 8px;">
-        <p>Generated with HisaabKitaabApp (created by Mudassar) • ${new Date().toLocaleString()} • v1.4</p>
-    </div>
-`;
+        const footer = `
+            <div style="text-align: center; margin-top: 25px; padding-top: 12px; border-top: 1px solid #eaeaea; color: #7f8c8d; font-size: 8px;">
+                <p>Generated with HisaabKitaabApp (created by Mudassar) • ${new Date().toLocaleString()} • v2.2</p>
+            </div>
+        `;
         
         // Combine all sections
         pdfContainer.innerHTML = header + summarySection + sharesSection + settlementsSection + footer;
