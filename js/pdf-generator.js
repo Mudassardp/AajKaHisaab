@@ -1,8 +1,4 @@
-<<<<<<< HEAD
 // PDF Generator for HisaabKitaab v3.1 - Always generates light mode
-=======
-// PDF Generator for HisaabKitaab v2.2
->>>>>>> 34eb52b7c4131b8cec426cd34633c3a9b7a08504
 (function() {
     'use strict';
     
@@ -161,7 +157,6 @@
         // Header Section
         const header = `
             <div style="text-align: center; border-bottom: 2px solid #3498db; padding-bottom: 15px; margin-bottom: 20px; page-break-after: avoid;">
-<<<<<<< HEAD
                 <h1 style="color: #2c3e50; font-size: 24px; margin-bottom: 5px; font-weight: bold;">HisaabKitaabApp v3.0</h1>
                 <p style="color: #7f8c8d; font-size: 14px; margin-bottom: 15px;">Expense Management System</p>
                 <div style="display: flex; justify-content: space-between; align-items: center; background-color: #f8f9fa; padding: 10px 15px; border-radius: 5px; border-left: 4px solid #3498db;">
@@ -169,12 +164,6 @@
                         <strong style="color: #2c3e50; font-size: 16px;">${currentSheetData.name || 'Unnamed Sheet'}</strong>
                         ${publishedStatus}
                     </div>
-=======
-                <h1 style="color: #2c3e50; font-size: 24px; margin-bottom: 5px; font-weight: bold;">HisaabKitaabApp v2.2</h1>
-                <p style="color: #7f8c8d; font-size: 14px; margin-bottom: 15px;">Expense Management System</p>
-                <div style="display: flex; justify-content: space-between; align-items: center; background-color: #f8f9fa; padding: 10px 15px; border-radius: 5px; border-left: 4px solid #3498db;">
-                    <strong style="color: #2c3e50; font-size: 16px;">${currentSheetData.name || 'Unnamed Sheet'}</strong>
->>>>>>> 34eb52b7c4131b8cec426cd34633c3a9b7a08504
                     <span style="color: #7f8c8d; font-size: 12px;">Updated: ${displayDate}</span>
                 </div>
             </div>
@@ -201,11 +190,7 @@
             </div>
         `;
         
-<<<<<<< HEAD
         // Individual Shares Section with Avatars - Removed meals column
-=======
-        // Individual Shares Section with Avatars
->>>>>>> 34eb52b7c4131b8cec426cd34633c3a9b7a08504
         let sharesSection = `
             <div style="margin-bottom: 20px; page-break-after: avoid;">
                 <h2 style="color: #2c3e50; font-size: 18px; margin-bottom: 10px; border-bottom: 1px solid #eaeaea; padding-bottom: 5px; font-weight: bold;">Individual Shares</h2>
@@ -273,7 +258,6 @@
                 const statusBg = settlement.status === 'paid' ? '#e8f6f3' : '#fdedec';
                 const statusText = settlement.status === 'paid' ? 'Paid' : 'Not Paid';
                 
-<<<<<<< HEAD
                 // Add bank match indicator if applicable - UPDATED: Colorless version
                 let bankMatchHtml = '';
                 if (settlement.bankMatch && settlement.bank) {
@@ -284,14 +268,6 @@
                     bankMatchHtml = `
                         <div style="margin-top: 5px; font-size: 11px; color: #666; font-style: italic;">
                             Same Bank: ${settlement.bank}${preferredText}
-=======
-                // Add bank match indicator if applicable
-                let bankMatchHtml = '';
-                if (settlement.bankMatch && settlement.bank) {
-                    bankMatchHtml = `
-                        <div style="margin-top: 5px; font-size: 11px; color: #27ae60; background-color: #e8f6f3; padding: 3px 8px; border-radius: 3px; border: 1px solid #27ae60; display: inline-block;">
-                            Same Bank: ${settlement.bank}
->>>>>>> 34eb52b7c4131b8cec426cd34633c3a9b7a08504
                         </div>
                     `;
                 }
@@ -324,11 +300,7 @@
         // Footer
         const footer = `
             <div style="text-align: center; margin-top: 25px; padding-top: 12px; border-top: 1px solid #eaeaea; color: #7f8c8d; font-size: 8px;">
-<<<<<<< HEAD
                 <p>Generated with HisaabKitaabApp (created by Mudassar) • ${new Date().toLocaleString()} • v3.4</p>
-=======
-                <p>Generated with HisaabKitaabApp (created by Mudassar) • ${new Date().toLocaleString()} • v2.2</p>
->>>>>>> 34eb52b7c4131b8cec426cd34633c3a9b7a08504
             </div>
         `;
         
