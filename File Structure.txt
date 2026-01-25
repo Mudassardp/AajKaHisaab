@@ -19,7 +19,13 @@ HisaabKitaab-PWA/
 │
 └── js/
     ├── script.js
+<<<<<<< HEAD
     ├── profile-manager.js
     ├── pdf-generator.js
     ├── firebase-sync.js
     └── Firebaseconfig.js
+=======
+    └── pdf-generator.js
+    └── Firebaseconfig.js
+    └── firebase-sync.js
+>>>>>>> 34eb52b7c4131b8cec426cd34633c3a9b7a08504
