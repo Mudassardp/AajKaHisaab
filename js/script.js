@@ -1,4 +1,4 @@
-// script.js - Mobile App Redesign v4.4 - Added Sheet Renaming Feature
+// script.js - Mobile App Redesign v4.5.2 - Fixed Save Button Settlement Preservation
 document.addEventListener('DOMContentLoaded', function() {
     // ===== GLOBAL STATE =====
     let selectedParticipants = [];
@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let defaultParticipants = JSON.parse(localStorage.getItem('hisaabKitaabDefaultParticipants')) || [
         "Rizwan", "Aarif", "Abdul Razzaq", "Haris", "Mauzam", 
         "Masif", "Mudassar", "Shahid", "Mansoor Kotawdekar", 
-        "Mansoor Wasta", "Mohsin", "Ubedulla", "Abdul Alim", "Sabir", "Aftab"
+        "Mansoor Wasta", "Mohsin", "Ubedulla", "Abdul Alim", "Sabir", "Aftab", "Sikandar", "Asif"
     ];
     
     const ADMIN_PASSWORD = "226622";
@@ -107,7 +107,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const defaultParticipantsModal = document.getElementById('defaultParticipantsModal');
     const closeDefaultParticipantsBtn = document.getElementById('closeDefaultParticipantsBtn');
     
-    // Rename Sheet Modal - NEW
+    // Rename Sheet Modal
     const renameSheetModal = document.getElementById('renameSheetModal');
     const renameSheetInput = document.getElementById('renameSheetInput');
     const confirmRenameBtn = document.getElementById('confirmRenameBtn');
@@ -211,7 +211,7 @@ document.addEventListener('DOMContentLoaded', function() {
         editParticipantsBtn.addEventListener('click', openEditParticipants);
         deleteSheetBtn.addEventListener('click', showDeleteConfirmation);
         
-        // Sheet Name Click - NEW: Rename sheet from sheet view
+        // Sheet Name Click - Rename sheet from sheet view
         mobileSheetName.addEventListener('click', function(e) {
             // Only allow renaming for admin
             if (isAdmin && currentSheetData) {
@@ -239,7 +239,7 @@ document.addEventListener('DOMContentLoaded', function() {
         cancelDeleteBtn.addEventListener('click', hideDeleteConfirmation);
         closeDefaultParticipantsBtn.addEventListener('click', () => defaultParticipantsModal.style.display = 'none');
         
-        // Rename Sheet Modal - NEW
+        // Rename Sheet Modal
         confirmRenameBtn.addEventListener('click', renameSheet);
         cancelRenameBtn.addEventListener('click', hideRenameSheetModal);
         renameSheetInput.addEventListener('keypress', (e) => {
@@ -263,15 +263,12 @@ document.addEventListener('DOMContentLoaded', function() {
             if (e.target === adminLoginModal) hideAdminLoginModal();
             if (e.target === deleteModal) hideDeleteConfirmation();
             if (e.target === defaultParticipantsModal) defaultParticipantsModal.style.display = 'none';
-            if (e.target === renameSheetModal) hideRenameSheetModal(); // NEW
+            if (e.target === renameSheetModal) hideRenameSheetModal();
         });
     }
     
     // ===== SHEET RENAMING FUNCTIONS =====
     
-    /**
-     * Show rename sheet modal
-     */
     function showRenameSheetModal(sheetId, currentName) {
         renameSheetModal.dataset.sheetId = sheetId;
         renameSheetInput.value = currentName;
@@ -282,18 +279,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 100);
     }
     
-    /**
-     * Hide rename sheet modal
-     */
     function hideRenameSheetModal() {
         renameSheetModal.style.display = 'none';
         renameSheetInput.value = '';
         delete renameSheetModal.dataset.sheetId;
     }
     
-    /**
-     * Rename sheet function
-     */
     function renameSheet() {
         if (!isAdmin) {
             alert('Only admin users can rename sheets.');
@@ -376,44 +367,6 @@ document.addEventListener('DOMContentLoaded', function() {
         
         hideRenameSheetModal();
         alert(`Sheet renamed from "${oldName}" to "${newName}"`);
-    }
-    
-    /**
-     * Add rename button to sheet items (called from createSheetListItem)
-     */
-    function addRenameButtonToSheetItem(sheetItem, sheetId, sheetName) {
-        // Only show for admin users
-        if (!isAdmin) return;
-        
-        const actionsDiv = document.createElement('div');
-        actionsDiv.className = 'sheet-item-actions';
-        actionsDiv.style.cssText = `
-            display: flex;
-            gap: 8px;
-            margin-left: 10px;
-        `;
-        
-        const renameBtn = document.createElement('button');
-        renameBtn.className = 'btn btn-small btn-info';
-        renameBtn.innerHTML = '✏️ Rename';
-        renameBtn.style.cssText = `
-            padding: 4px 8px;
-            font-size: 11px;
-        `;
-        renameBtn.addEventListener('click', (e) => {
-            e.stopPropagation(); // Prevent opening the sheet
-            showRenameSheetModal(sheetId, sheetName);
-        });
-        
-        actionsDiv.appendChild(renameBtn);
-        
-        // Append to sheet item
-        const existingActions = sheetItem.querySelector('.sheet-item-actions');
-        if (existingActions) {
-            existingActions.appendChild(renameBtn);
-        } else {
-            sheetItem.appendChild(actionsDiv);
-        }
     }
     
     // ===== PAGE MANAGEMENT =====
@@ -1097,6 +1050,14 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function calculateEqualSplit() {
+        // Store existing settlement statuses before recalculation
+        const existingStatuses = {};
+        if (currentSheetData.settlements) {
+            Object.keys(currentSheetData.settlements).forEach(key => {
+                existingStatuses[key] = currentSheetData.settlements[key].status;
+            });
+        }
+        
         let totalSpentValue = 0;
         selectedParticipants.forEach(participant => {
             totalSpentValue += currentSheetData.expenses[participant].spent;
@@ -1148,10 +1109,18 @@ document.addEventListener('DOMContentLoaded', function() {
         currentSheetData.perPersonShare = perPersonShareRounded;
         currentSheetData.lastUpdated = formatDateTime(new Date());
         
-        generateSettlementsV4();
+        generateSettlementsV4(existingStatuses);
     }
     
     function calculateMealsBasedSplit() {
+        // Store existing settlement statuses before recalculation
+        const existingStatuses = {};
+        if (currentSheetData.settlements) {
+            Object.keys(currentSheetData.settlements).forEach(key => {
+                existingStatuses[key] = currentSheetData.settlements[key].status;
+            });
+        }
+        
         let totalSpentValue = 0;
         let totalMeals = 0;
         
@@ -1198,10 +1167,10 @@ document.addEventListener('DOMContentLoaded', function() {
         currentSheetData.costPerMeal = costPerMealRounded;
         currentSheetData.lastUpdated = formatDateTime(new Date());
         
-        generateLegacySettlements();
+        generateLegacySettlements(existingStatuses);
     }
     
-    function generateSettlementsV4() {
+    function generateSettlementsV4(existingStatuses = {}) {
         currentSheetData.settlements = {};
         
         let creditors = [];
@@ -1262,12 +1231,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 const settlementKey = `${debtor.name}_to_${creditor.name}`;
                 
+                // Check if this settlement existed before and preserve its status
+                const previousStatus = existingStatuses[settlementKey] || 'not-paid';
+                
                 settlements.push({
                     from: debtor.name,
                     to: creditor.name,
                     amount: roundedAmount,
                     key: settlementKey,
-                    status: 'not-paid'
+                    status: previousStatus
                 });
                 
                 creditor.amount -= paymentAmount;
@@ -1323,12 +1295,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (roundedTransfer >= 0.01) {
                         const settlementKey = `${overpaid.name}_to_${underpaid.name}`;
                         
+                        // Check if this settlement existed before and preserve its status
+                        const previousStatus = existingStatuses[settlementKey] || 'not-paid';
+                        
                         settlements.push({
                             from: overpaid.name,
                             to: underpaid.name,
                             amount: roundedTransfer,
                             key: settlementKey,
-                            status: 'not-paid'
+                            status: previousStatus
                         });
                         
                         console.log(`REDISTRIBUTION: ${overpaid.name} pays ${roundedTransfer.toFixed(2)} to ${underpaid.name}`);
@@ -1348,13 +1323,17 @@ document.addEventListener('DOMContentLoaded', function() {
             if (consolidatedMap.has(key)) {
                 const existing = consolidatedMap.get(key);
                 existing.amount = Math.round((existing.amount + settlement.amount) * 100) / 100;
+                // Keep the most recent status? Or merge? For now, keep existing
+                if (existing.status === 'not-paid' && settlement.status === 'paid') {
+                    existing.status = 'paid'; // If any part is paid, consider it paid
+                }
             } else {
                 consolidatedMap.set(key, {
                     from: settlement.from,
                     to: settlement.to,
                     amount: settlement.amount,
                     key: key,
-                    status: 'not-paid'
+                    status: settlement.status
                 });
             }
         });
@@ -1376,7 +1355,7 @@ document.addEventListener('DOMContentLoaded', function() {
         renderSettlementList();
     }
     
-    function generateLegacySettlements() {
+    function generateLegacySettlements(existingStatuses = {}) {
         currentSheetData.settlements = {};
         
         const creditors = [];
@@ -1420,12 +1399,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 const settlementKey = `${debtors[i].name}_to_${creditors[j].name}`;
                 const roundedAmount = Math.round(settlementAmount * 100) / 100;
                 
+                // Check if this settlement existed before and preserve its status
+                const previousStatus = existingStatuses[settlementKey] || 'not-paid';
+                
                 settlements.push({
                     from: debtors[i].name,
                     to: creditors[j].name,
                     amount: roundedAmount,
                     key: settlementKey,
-                    status: 'not-paid'
+                    status: previousStatus
                 });
                 
                 debtors[i].amount -= settlementAmount;
@@ -1443,6 +1425,7 @@ document.addEventListener('DOMContentLoaded', function() {
         renderSettlementList();
     }
     
+    // Render settlement list with checkboxes
     function renderSettlementList() {
         settlementList.innerHTML = '';
         
@@ -1456,16 +1439,6 @@ document.addEventListener('DOMContentLoaded', function() {
         if (currentSheetData.version === 'v4.0' && settlements.length > 0) {
             const note = document.createElement('div');
             note.className = 'settlement-note';
-            note.style.cssText = `
-                background-color: color-mix(in srgb, var(--info-color) 10%, transparent);
-                color: var(--info-color);
-                padding: 10px;
-                border-radius: 8px;
-                margin-bottom: 15px;
-                font-size: 13px;
-                text-align: center;
-                border: 1px solid color-mix(in srgb, var(--info-color) 30%, transparent);
-            `;
             
             const totalPaid = settlements.reduce((sum, s) => sum + (typeof s.amount === 'number' ? s.amount : parseFloat(s.amount)), 0);
             
@@ -1479,69 +1452,43 @@ document.addEventListener('DOMContentLoaded', function() {
             settlementItem.className = 'settlement-item';
             
             const isPaid = settlement.status === 'paid';
-            const statusClass = isPaid ? 'paid' : 'not-paid';
-            const statusText = isPaid ? 'Paid' : 'Not Paid';
-            
+            const settlementKey = settlement.key || `${settlement.from}_to_${settlement.to}`;
             const amountValue = typeof settlement.amount === 'number' 
                 ? settlement.amount.toFixed(2) 
                 : parseFloat(settlement.amount).toFixed(2);
             
             if (isAdmin) {
+                // Admin view with checkbox
                 settlementItem.innerHTML = `
                     <div class="settlement-details">
-                        <div class="settlement-first-line">
-                            <span class="settlement-from">${settlement.from}</span>
-                            <span class="settlement-arrow">→</span>
-                            <span class="settlement-to">${settlement.to}</span>
+                        <div class="settlement-info">
+                            <div class="settlement-first-line">
+                                <span class="settlement-from">${settlement.from}</span>
+                                <span class="settlement-arrow">→</span>
+                                <span class="settlement-to">${settlement.to}</span>
+                                <span class="settlement-amount">${amountValue} SAR</span>
+                            </div>
                         </div>
-                        <div class="settlement-second-line">
-                            <span class="settlement-amount">${amountValue} SAR</span>
-                            <button class="settlement-toggle-btn ${statusClass}" data-key="${settlement.key || `${settlement.from}_to_${settlement.to}`}">
-                                ${statusText}
-                            </button>
+                        <div class="settlement-checkbox-container">
+                            <input type="checkbox" class="settlement-checkbox" data-settlement-key="${settlementKey}" ${isPaid ? 'checked' : ''}>
+                            <span class="settlement-status-text ${isPaid ? 'paid' : 'not-paid'}">${isPaid ? 'Settled' : 'Not Settled yet'}</span>
                         </div>
                     </div>
                 `;
-                
-                const toggleBtn = settlementItem.querySelector('.settlement-toggle-btn');
-                toggleBtn.addEventListener('click', function() {
-                    let settlementKey = this.dataset.key;
-                    if (!currentSheetData.settlements[settlementKey]) {
-                        const s = Object.values(currentSheetData.settlements).find(s => 
-                            `${s.from}_to_${s.to}` === settlementKey
-                        );
-                        if (s && s.key) {
-                            settlementKey = s.key;
-                        }
-                    }
-                    
-                    const currentStatus = currentSheetData.settlements[settlementKey].status;
-                    const newStatus = currentStatus === 'paid' ? 'not-paid' : 'paid';
-                    
-                    currentSheetData.settlements[settlementKey].status = newStatus;
-                    
-                    if (newStatus === 'paid') {
-                        this.className = 'settlement-toggle-btn paid';
-                        this.textContent = 'Paid';
-                    } else {
-                        this.className = 'settlement-toggle-btn not-paid';
-                        this.textContent = 'Not Paid';
-                    }
-                    
-                    saveSheet();
-                });
             } else {
-                const staticStatusClass = isPaid ? 'status-paid' : 'status-not-paid';
+                // Non-admin view - just show status text
                 settlementItem.innerHTML = `
                     <div class="settlement-details">
-                        <div class="settlement-first-line">
-                            <span class="settlement-from">${settlement.from}</span>
-                            <span class="settlement-arrow">→</span>
-                            <span class="settlement-to">${settlement.to}</span>
+                        <div class="settlement-info">
+                            <div class="settlement-first-line">
+                                <span class="settlement-from">${settlement.from}</span>
+                                <span class="settlement-arrow">→</span>
+                                <span class="settlement-to">${settlement.to}</span>
+                                <span class="settlement-amount">${amountValue} SAR</span>
+                            </div>
                         </div>
-                        <div class="settlement-second-line">
-                            <span class="settlement-amount">${amountValue} SAR</span>
-                            <span class="settlement-status ${staticStatusClass}">${statusText}</span>
+                        <div class="settlement-checkbox-container">
+                            <span class="settlement-status-display ${isPaid ? 'paid' : 'not-paid'}">${isPaid ? 'Settled' : 'Not Settled yet'}</span>
                         </div>
                     </div>
                 `;
@@ -1549,18 +1496,119 @@ document.addEventListener('DOMContentLoaded', function() {
             
             settlementList.appendChild(settlementItem);
         });
+        
+        // Add event listeners to checkboxes for admin
+        if (isAdmin) {
+            document.querySelectorAll('.settlement-checkbox').forEach(checkbox => {
+                // Stop click event from bubbling up to prevent triggering other handlers
+                checkbox.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                });
+                
+                checkbox.addEventListener('change', toggleSettlementCheckbox);
+            });
+        }
+    }
+    
+    // Toggle settlement status via checkbox
+    function toggleSettlementCheckbox(event) {
+        const checkbox = event.currentTarget;
+        const settlementKey = checkbox.dataset.settlementKey;
+        
+        if (!settlementKey || !currentSheetData || !currentSheetData.settlements) {
+            console.error('Settlement key or data not found');
+            return;
+        }
+        
+        // Find the settlement in currentSheetData.settlements
+        let settlement = null;
+        let actualKey = null;
+        
+        // Try direct lookup first
+        if (currentSheetData.settlements[settlementKey]) {
+            settlement = currentSheetData.settlements[settlementKey];
+            actualKey = settlementKey;
+        } else {
+            // Try to find by matching from/to
+            settlement = Object.values(currentSheetData.settlements).find(s => 
+                `${s.from}_to_${s.to}` === settlementKey || s.key === settlementKey
+            );
+            if (settlement && settlement.key) {
+                actualKey = settlement.key;
+            }
+        }
+        
+        if (!settlement || !actualKey) {
+            console.error('Settlement not found:', settlementKey);
+            return;
+        }
+        
+        // Update status based on checkbox
+        const newStatus = checkbox.checked ? 'paid' : 'not-paid';
+        settlement.status = newStatus;
+        
+        // Update the status text next to checkbox
+        const statusText = checkbox.parentElement.querySelector('.settlement-status-text');
+        if (statusText) {
+            statusText.textContent = newStatus === 'paid' ? 'Settled' : 'Not Settled yet';
+            statusText.className = `settlement-status-text ${newStatus === 'paid' ? 'paid' : 'not-paid'}`;
+        }
+        
+        // Save the updated sheet silently (no alert)
+        saveSheetSilently();
+    }
+    
+    // Silent save function that doesn't show alert
+    function saveSheetSilently() {
+        if (!currentSheetData || !isAdmin) return;
+        
+        // Don't call calculateShares() here to avoid resetting settlements
+        // Just save the current data as is
+        
+        const existingIndex = savedSheets.findIndex(sheet => sheet.id === currentSheetData.id);
+        if (existingIndex !== -1) {
+            savedSheets[existingIndex] = JSON.parse(JSON.stringify(currentSheetData));
+        } else {
+            savedSheets.push(JSON.parse(JSON.stringify(currentSheetData)));
+        }
+        
+        localStorage.setItem('hisaabKitaabSheets', JSON.stringify(savedSheets));
+        
+        if (window.firebaseSync && window.firebaseSync.isInitialized) {
+            window.firebaseSync.saveSheetsToCloud(savedSheets);
+        }
+        
+        // No alert here!
+        updateHomeStats();
     }
     
     function saveSheet() {
         if (!currentSheetData || !isAdmin) return;
         
+        // Store existing settlement statuses before recalculation
+        const existingStatuses = {};
+        if (currentSheetData.settlements) {
+            Object.keys(currentSheetData.settlements).forEach(key => {
+                existingStatuses[key] = currentSheetData.settlements[key].status;
+            });
+        }
+        
         calculateShares();
+        
+        // After calculation, restore the statuses that existed before
+        if (currentSheetData.settlements && Object.keys(existingStatuses).length > 0) {
+            Object.keys(currentSheetData.settlements).forEach(key => {
+                if (existingStatuses[key] !== undefined) {
+                    currentSheetData.settlements[key].status = existingStatuses[key];
+                }
+            });
+        }
         
         const existingIndex = savedSheets.findIndex(sheet => sheet.id === currentSheetData.id);
         if (existingIndex !== -1) {
-            savedSheets[existingIndex] = currentSheetData;
+            savedSheets[existingIndex] = JSON.parse(JSON.stringify(currentSheetData));
         } else {
-            savedSheets.push(currentSheetData);
+            savedSheets.push(JSON.parse(JSON.stringify(currentSheetData)));
         }
         
         localStorage.setItem('hisaabKitaabSheets', JSON.stringify(savedSheets));
@@ -1570,6 +1618,10 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         updateHomeStats();
+        
+        // Re-render settlements to ensure UI reflects the restored statuses
+        renderSettlementList();
+        
         alert('Sheet saved successfully!');
     }
     
@@ -1580,7 +1632,7 @@ document.addEventListener('DOMContentLoaded', function() {
         currentSheetData.lastUpdated = formatDateTime(new Date());
         
         updatePublishButton();
-        saveSheet();
+        saveSheetSilently();
         
         const status = currentSheetData.published ? 'published' : 'unpublished';
         alert(`Sheet ${status} successfully!`);
@@ -1810,6 +1862,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 updateSheetAdminControls();
                 updateTableHeader();
                 renderExpenseTable();
+                renderSettlementList(); // Re-render settlements with checkboxes
                 mobileSheetName.style.cursor = 'pointer';
                 mobileSheetName.title = 'Click to rename sheet';
             }
@@ -1834,6 +1887,7 @@ document.addEventListener('DOMContentLoaded', function() {
             updateSheetAdminControls();
             updateTableHeader();
             renderExpenseTable();
+            renderSettlementList(); // Re-render settlements without checkboxes
             mobileSheetName.style.cursor = 'default';
             mobileSheetName.title = '';
         }
