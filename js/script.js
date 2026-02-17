@@ -355,7 +355,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 border-radius: 12px;
                 margin-left: 10px;
             `;
-            versionBadge.textContent = currentSheetData.version === 'v4.0' ? 'v4.0 - Equal Split' : 'v3.0';
+            versionBadge.textContent = currentSheetData.version === 'v4.0' ? 'v4.0' : 'v3.0';
             mobileSheetName.appendChild(versionBadge);
         }
         
@@ -1519,8 +1519,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const totalPaid = settlements.reduce((sum, s) => sum + (typeof s.amount === 'number' ? s.amount : parseFloat(s.amount)), 0);
             
-            note.innerHTML = `✅ OPTIMIZED SETTLEMENTS: Each person pays only ONE person<br>
-                             <span style="font-size: 12px;">Total to settle: ${totalPaid.toFixed(2)} SAR</span>`;
+            note.innerHTML = `<span style="font-size: 12px;">Total to settle: ${totalPaid.toFixed(2)} SAR</span>`;
             settlementList.appendChild(note);
         }
         
@@ -1813,7 +1812,7 @@ document.addEventListener('DOMContentLoaded', function() {
             margin-left: 10px;
             cursor: default;
         `;
-        versionBadge.textContent = currentSheetData.version === 'v4.0' ? 'v4.0 - Equal Split' : 'v3.0';
+        versionBadge.textContent = currentSheetData.version === 'v4.0' ? 'v4.0' : 'v3.0';
         mobileSheetName.appendChild(versionBadge);
         
         sheetDate.textContent = `Date: ${currentSheetData.date}`;
