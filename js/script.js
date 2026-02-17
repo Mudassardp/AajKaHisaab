@@ -1,4 +1,4 @@
-// script.js - Mobile App Redesign v4.5.2 - Fixed Save Button Settlement Preservation
+// script.js - Mobile App Redesign v4.5.3 - Added Delete Button to Sheets List
 document.addEventListener('DOMContentLoaded', function() {
     // ===== GLOBAL STATE =====
     let selectedParticipants = [];
@@ -81,7 +81,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const saveBtn = document.getElementById('saveBtn');
     const sharePdfBtn = document.getElementById('sharePdfBtn');
     const editParticipantsBtn = document.getElementById('editParticipantsBtn');
-    const deleteSheetBtn = document.getElementById('deleteSheetBtn');
     const adminSheetActions = document.getElementById('adminSheetActions');
     const totalParticipants = document.getElementById('totalParticipants');
     const totalSpent = document.getElementById('totalSpent');
@@ -209,7 +208,7 @@ document.addEventListener('DOMContentLoaded', function() {
         saveBtn.addEventListener('click', saveSheet);
         sharePdfBtn.addEventListener('click', handlePDFGeneration);
         editParticipantsBtn.addEventListener('click', openEditParticipants);
-        deleteSheetBtn.addEventListener('click', showDeleteConfirmation);
+        // REMOVED: deleteSheetBtn event listener
         
         // Sheet Name Click - Rename sheet from sheet view
         mobileSheetName.addEventListener('click', function(e) {
@@ -369,6 +368,58 @@ document.addEventListener('DOMContentLoaded', function() {
         alert(`Sheet renamed from "${oldName}" to "${newName}"`);
     }
     
+    // ===== SHEET DELETION FUNCTIONS =====
+    
+    function showDeleteConfirmationForSheet(sheetId) {
+        deleteModal.dataset.sheetId = sheetId;
+        deleteModal.style.display = 'flex';
+    }
+    
+    function hideDeleteConfirmation() {
+        deleteModal.style.display = 'none';
+        delete deleteModal.dataset.sheetId;
+    }
+    
+    function deleteSheetById(sheetId) {
+        const sheetIndex = savedSheets.findIndex(sheet => sheet.id === sheetId);
+        
+        if (sheetIndex === -1) {
+            alert('Sheet not found.');
+            return;
+        }
+        
+        const sheet = savedSheets[sheetIndex];
+        
+        // Add to deleted sheets
+        sheet.deletedDate = new Date().toISOString();
+        deletedSheets.push(sheet);
+        localStorage.setItem('hisaabKitaabDeletedSheets', JSON.stringify(deletedSheets));
+        
+        // Remove from saved sheets
+        savedSheets.splice(sheetIndex, 1);
+        localStorage.setItem('hisaabKitaabSheets', JSON.stringify(savedSheets));
+        
+        // Sync to Firebase
+        if (window.firebaseSync && window.firebaseSync.isInitialized) {
+            window.firebaseSync.saveSheetsToCloud(savedSheets);
+        }
+        
+        // If this is the current open sheet, navigate away
+        if (currentSheetData && currentSheetData.id === sheetId) {
+            currentSheetData = null;
+            selectedParticipants = [];
+            showPage('sheets');
+        }
+        
+        // Refresh UI
+        updateHomeStats();
+        loadRecentSheets();
+        loadAllSheets();
+        updateDeletedSheetsBin();
+        
+        alert('Sheet moved to bin!');
+    }
+    
     // ===== PAGE MANAGEMENT =====
     function showPage(page) {
         homeContent.classList.remove('active');
@@ -482,8 +533,8 @@ document.addEventListener('DOMContentLoaded', function() {
             const sheetItem = document.createElement('div');
             sheetItem.className = 'recent-sheet-item';
             sheetItem.addEventListener('click', (e) => {
-                // Don't open sheet if clicking on rename button
-                if (e.target.classList.contains('rename-btn') || e.target.closest('.sheet-item-actions')) {
+                // Don't open sheet if clicking on action buttons
+                if (e.target.classList.contains('action-btn') || e.target.closest('.sheet-item-actions')) {
                     return;
                 }
                 openSheet(sheet.id);
@@ -501,19 +552,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
             `;
             
-            // Add rename button for admin
+            // Add action buttons for admin (rename and delete)
             if (isAdmin) {
                 const actionsDiv = document.createElement('div');
                 actionsDiv.className = 'sheet-item-actions';
                 actionsDiv.style.cssText = `
                     display: flex;
                     gap: 8px;
-                    margin-top: 5px;
+                    margin-top: 10px;
                 `;
                 
                 const renameBtn = document.createElement('button');
-                renameBtn.className = 'btn btn-small btn-info rename-btn';
-                renameBtn.innerHTML = '✏️ Rename';
+                renameBtn.className = 'btn btn-small btn-info action-btn';
+                renameBtn.innerHTML = '✏️';
                 renameBtn.style.cssText = `
                     padding: 4px 8px;
                     font-size: 11px;
@@ -523,7 +574,20 @@ document.addEventListener('DOMContentLoaded', function() {
                     showRenameSheetModal(sheet.id, sheet.name);
                 });
                 
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'btn btn-small btn-danger action-btn';
+                deleteBtn.innerHTML = '🗑️';
+                deleteBtn.style.cssText = `
+                    padding: 4px 8px;
+                    font-size: 11px;
+                `;
+                deleteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    showDeleteConfirmationForSheet(sheet.id);
+                });
+                
                 actionsDiv.appendChild(renameBtn);
+                actionsDiv.appendChild(deleteBtn);
                 sheetItem.querySelector('div').appendChild(actionsDiv);
             }
             
@@ -563,8 +627,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const sheetItem = document.createElement('li');
         sheetItem.className = 'sheet-item';
         sheetItem.addEventListener('click', (e) => {
-            // Don't open sheet if clicking on rename button
-            if (e.target.classList.contains('rename-btn') || e.target.closest('.sheet-item-actions')) {
+            // Don't open sheet if clicking on action buttons
+            if (e.target.classList.contains('action-btn') || e.target.closest('.sheet-item-actions')) {
                 return;
             }
             openSheet(sheet.id);
@@ -592,7 +656,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         sheetItem.appendChild(sheetInfo);
         
-        // Add rename button for admin
+        // Add action buttons for admin (rename and delete)
         if (isAdmin) {
             const actionsDiv = document.createElement('div');
             actionsDiv.className = 'sheet-item-actions';
@@ -603,8 +667,8 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
             
             const renameBtn = document.createElement('button');
-            renameBtn.className = 'btn btn-small btn-info rename-btn';
-            renameBtn.innerHTML = '✏️ Rename';
+            renameBtn.className = 'btn btn-small btn-info action-btn';
+            renameBtn.innerHTML = '✏️';
             renameBtn.style.cssText = `
                 padding: 4px 8px;
                 font-size: 11px;
@@ -614,7 +678,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 showRenameSheetModal(sheet.id, sheet.name);
             });
             
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'btn btn-small btn-danger action-btn';
+            deleteBtn.innerHTML = '🗑️';
+            deleteBtn.style.cssText = `
+                padding: 4px 8px;
+                font-size: 11px;
+            `;
+            deleteBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                showDeleteConfirmationForSheet(sheet.id);
+            });
+            
             actionsDiv.appendChild(renameBtn);
+            actionsDiv.appendChild(deleteBtn);
             sheetItem.appendChild(actionsDiv);
         }
         
@@ -1642,14 +1719,14 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!currentSheetData) return;
         
         if (currentSheetData.published) {
-            publishIcon.textContent = '🔒';
-            togglePublishBtn.classList.remove('btn-success');
-            togglePublishBtn.classList.add('btn-warning');
-            togglePublishBtn.title = 'Unpublish Sheet';
-        } else {
-            publishIcon.textContent = '📢';
+            publishIcon.textContent = 'Published🔒';
             togglePublishBtn.classList.remove('btn-warning');
             togglePublishBtn.classList.add('btn-success');
+            togglePublishBtn.title = 'Unpublish Sheet';
+        } else {
+            publishIcon.textContent = 'Unpublished📢';
+            togglePublishBtn.classList.remove('btn-success');
+            togglePublishBtn.classList.add('btn-warning');
             togglePublishBtn.title = 'Publish Sheet';
         }
     }
@@ -1924,34 +2001,21 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    function showDeleteConfirmation() {
-        if (!isAdmin) return;
-        deleteModal.style.display = 'flex';
-    }
-    
-    function hideDeleteConfirmation() {
-        deleteModal.style.display = 'none';
-    }
+    // REMOVED: showDeleteConfirmation function (old one)
+    // REMOVED: hideDeleteConfirmation function (old one)
+    // REMOVED: deleteCurrentSheet function (old one)
     
     function deleteCurrentSheet() {
-        if (!currentSheetData || !isAdmin) return;
+        const sheetId = deleteModal.dataset.sheetId;
         
-        currentSheetData.deletedDate = new Date().toISOString();
-        deletedSheets.push(currentSheetData);
-        localStorage.setItem('hisaabKitaabDeletedSheets', JSON.stringify(deletedSheets));
-        
-        savedSheets = savedSheets.filter(sheet => sheet.id !== currentSheetData.id);
-        localStorage.setItem('hisaabKitaabSheets', JSON.stringify(savedSheets));
-        
-        if (window.firebaseSync && window.firebaseSync.isInitialized) {
-            window.firebaseSync.saveSheetsToCloud(savedSheets);
+        if (!sheetId) {
+            alert('Sheet ID not found.');
+            hideDeleteConfirmation();
+            return;
         }
         
-        updateHomeStats();
-        updateDeletedSheetsBin();
+        deleteSheetById(sheetId);
         hideDeleteConfirmation();
-        showPage('sheets');
-        alert('Sheet moved to bin!');
     }
     
     function updateDeletedSheetsBin() {
@@ -2025,6 +2089,11 @@ document.addEventListener('DOMContentLoaded', function() {
         savedSheets.push(sheet);
         localStorage.setItem('hisaabKitaabSheets', JSON.stringify(savedSheets));
         
+        // Sync to Firebase
+        if (window.firebaseSync && window.firebaseSync.isInitialized) {
+            window.firebaseSync.saveSheetsToCloud(savedSheets);
+        }
+        
         updateHomeStats();
         updateDeletedSheetsBin();
         alert('Sheet restored successfully!');
@@ -2069,6 +2138,11 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         
         localStorage.setItem('hisaabKitaabSheets', JSON.stringify(savedSheets));
+        
+        // Sync to Firebase
+        if (window.firebaseSync && window.firebaseSync.isInitialized) {
+            window.firebaseSync.saveSheetsToCloud(savedSheets);
+        }
         
         deletedSheets = [];
         localStorage.setItem('hisaabKitaabDeletedSheets', JSON.stringify(deletedSheets));
